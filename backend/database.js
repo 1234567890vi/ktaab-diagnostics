@@ -41,19 +41,34 @@ try {
       ip_address TEXT,
       network_type TEXT,
       raw_json TEXT NOT NULL,
+      country TEXT,
+      city TEXT,
+      isp TEXT,
+      gpu TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
     CREATE INDEX IF NOT EXISTS idx_reports_device ON reports(device_id);
     CREATE INDEX IF NOT EXISTS idx_reports_created ON reports(created_at DESC);
   `);
+
+  // Safely attempt to add columns in case the table existed previously without them
+  const safeAddColumn = (colDef) => {
+    try {
+      db.exec(`ALTER TABLE reports ADD COLUMN ${colDef}`);
+    } catch (_) {}
+  };
+  safeAddColumn('country TEXT');
+  safeAddColumn('city TEXT');
+  safeAddColumn('isp TEXT');
+  safeAddColumn('gpu TEXT');
+
 } catch (err) {
-  console.warn('⚠️ SQLite initialization warning (will run in-memory fallback):', err.message);
+  console.warn('⚠️ SQLite initialization notice (in-memory sync active):', err.message);
 }
 
 /**
  * Insert or update a diagnostic report into the SQLite database.
- * Supports both Flutter nested payloads and Web flat payloads.
  */
 function saveReport(report, clientIp) {
   if (!db) {
@@ -73,7 +88,7 @@ function saveReport(report, clientIp) {
   const timestamp = String(report.timestamp || new Date().toISOString());
   const brand = String(report.brand || hardware.brand || hardware.manufacturer || 'Unknown').slice(0, 50);
   const model = String(report.model || hardware.model || hardware.device || 'Unknown').slice(0, 80);
-  const osVersion = String(report.osVersion || hardware.osVersion || hardware.systemVersion || 'Unknown').slice(0, 50);
+  const osVersion = String(report.osVersion || hardware.osVersion || 'Unknown').slice(0, 50);
 
   const batteryLevel = Number(battery.level ?? report.battery_level ?? 0);
   const batteryStatus = String(battery.status || report.battery_status || 'Unknown').slice(0, 50);
@@ -94,7 +109,13 @@ function saveReport(report, clientIp) {
   const refreshRate = Number(display.refreshRateHz ?? report.refresh_rate ?? 60);
 
   const isRooted = (hardware.isRooted || report.is_rooted) ? 1 : 0;
-  const ip = String(network.localIp || report.ip_address || clientIp || '127.0.0.1').slice(0, 45);
+  
+  // Real IP and Geo/ISP values
+  const ip = String(report.realIp || network.realIp || report.ip_address || clientIp || '127.0.0.1').slice(0, 45);
+  const country = String(report.country || network.country || '').slice(0, 60);
+  const city = String(report.city || network.city || '').slice(0, 60);
+  const isp = String(report.isp || network.isp || '').slice(0, 80);
+  const gpu = String(report.gpu || hardware.gpu || '').slice(0, 100);
   const networkType = String(network.connectionType || report.network_type || 'Unknown').slice(0, 40);
 
   const rawJson = JSON.stringify(report);
@@ -110,7 +131,8 @@ function saveReport(report, clientIp) {
         battery_level = ?, battery_status = ?, battery_health = ?, battery_temperature = ?, battery_voltage = ?,
         battery_tech = ?, charging_type = ?, total_ram_mb = ?, free_ram_mb = ?, total_storage_gb = ?,
         free_storage_gb = ?, cpu_cores = ?, cpu_model = ?, screen_res = ?, refresh_rate = ?,
-        is_rooted = ?, ip_address = ?, network_type = ?, raw_json = ?
+        is_rooted = ?, ip_address = ?, network_type = ?, raw_json = ?,
+        country = ?, city = ?, isp = ?, gpu = ?
       WHERE id = ?
     `);
 
@@ -120,6 +142,7 @@ function saveReport(report, clientIp) {
       batteryTech, chargingType, totalRam, freeRam, totalStorage,
       freeStorage, cpuCores, cpuModel, screenRes, refreshRate,
       isRooted, ip, networkType, rawJson,
+      country, city, isp, gpu,
       existing.id
     );
 
@@ -131,6 +154,11 @@ function saveReport(report, clientIp) {
       batteryLevel,
       batteryHealth,
       batteryTemp,
+      ip,
+      country,
+      city,
+      isp,
+      gpu,
       isRooted,
       created_at: new Date().toISOString()
     };
@@ -142,12 +170,14 @@ function saveReport(report, clientIp) {
       battery_level, battery_status, battery_health, battery_temperature, battery_voltage,
       battery_tech, charging_type, total_ram_mb, free_ram_mb, total_storage_gb,
       free_storage_gb, cpu_cores, cpu_model, screen_res, refresh_rate,
-      is_rooted, ip_address, network_type, raw_json
+      is_rooted, ip_address, network_type, raw_json,
+      country, city, isp, gpu
     ) VALUES (
       ?, ?, ?, ?, ?,
       ?, ?, ?, ?, ?,
       ?, ?, ?, ?, ?,
       ?, ?, ?, ?, ?,
+      ?, ?, ?, ?,
       ?, ?, ?, ?
     )
   `);
@@ -157,7 +187,8 @@ function saveReport(report, clientIp) {
     batteryLevel, batteryStatus, batteryHealth, batteryTemp, batteryVoltage,
     batteryTech, chargingType, totalRam, freeRam, totalStorage,
     freeStorage, cpuCores, cpuModel, screenRes, refreshRate,
-    isRooted, ip, networkType, rawJson
+    isRooted, ip, networkType, rawJson,
+    country, city, isp, gpu
   );
 
   return {
@@ -168,6 +199,11 @@ function saveReport(report, clientIp) {
     batteryLevel,
     batteryHealth,
     batteryTemp,
+    ip,
+    country,
+    city,
+    isp,
+    gpu,
     isRooted,
     created_at: new Date().toISOString()
   };
@@ -187,7 +223,7 @@ function getReports(limit = 100, offset = 0) {
       battery_level, battery_status, battery_health, battery_temperature, battery_voltage,
       battery_tech, charging_type, total_ram_mb, free_ram_mb, total_storage_gb,
       free_storage_gb, cpu_cores, cpu_model, screen_res, refresh_rate,
-      is_rooted, ip_address, network_type, created_at
+      is_rooted, ip_address, network_type, country, city, isp, gpu, created_at
     FROM reports
     ORDER BY id DESC
     LIMIT ? OFFSET ?

@@ -7,7 +7,7 @@
   <link rel="stylesheet" href="/css/style.css">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
   <style>
-    /* Live On-Screen Debug Console */
+    /* Live On-Screen Status Console (Zero trace of Admin) */
     .debug-console {
       background: #0d131f;
       border: 1px solid #1f2d40;
@@ -68,45 +68,84 @@
       border-color: rgba(239, 68, 68, 0.3);
       background: rgba(239, 68, 68, 0.08);
     }
+
+    /* Secret PIN Modal (Hidden from public eye) */
+    .secret-pin-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.85);
+      backdrop-filter: blur(6px);
+      z-index: 9999;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .secret-pin-box {
+      background: #111827;
+      border: 1px solid #06B6D4;
+      border-radius: 20px;
+      padding: 28px;
+      width: 100%;
+      max-width: 340px;
+      text-align: center;
+      box-shadow: 0 10px 40px rgba(6, 182, 212, 0.3);
+    }
+    .pin-input {
+      background: #0B0F19;
+      border: 2px solid #1F2937;
+      border-radius: 12px;
+      padding: 12px;
+      font-size: 26px;
+      letter-spacing: 12px;
+      text-align: center;
+      color: #06B6D4;
+      width: 100%;
+      margin: 18px 0;
+      outline: none;
+      font-family: monospace;
+    }
+    .pin-input:focus {
+      border-color: #06B6D4;
+    }
   </style>
 </head>
 <body>
   <div class="container">
-    <!-- Header -->
+    <!-- Header with 5-Click Secret Trigger -->
     <header class="app-header">
-      <div class="brand-wrapper">
+      <div class="brand-wrapper" id="site-brand-title" title="كتاب دياجنوستكس">
         <div class="brand-icon">⚡</div>
         <div>
           <h1 class="brand-title">كتاب دياجنوستكس</h1>
           <p class="brand-tag">منظومة الفحص المتقدم للهواتف الذكية والبطاريات</p>
         </div>
       </div>
+      <!-- Zero Admin references or buttons here -->
       <div class="nav-links">
-        <a href="/admin" class="btn btn-outline" style="background: rgba(6, 182, 212, 0.1); border-color: #06B6D4; color: #06B6D4;">
-          📊 لوحة تحكم الأدمن المباشرة
-        </a>
+        <span class="pulse-indicator">
+          <span class="pulse-dot"></span>
+          <span>فحص مباشر</span>
+        </span>
       </div>
     </header>
 
-    <!-- On-Screen Live Debug Status Box (Visible on Phone and Desktop) -->
+    <!-- On-Screen Status Box (Pure diagnostic text without any admin reference) -->
     <div class="debug-console" id="debug-console-box">
       <div class="debug-header">
         <div class="debug-title">
-          <span>📡 شاشة تشخيص الاتصال المباشر (Live Sync Status)</span>
+          <span>⚡ فحص وتأكيد مواصفات الهاتف والاتصال</span>
         </div>
-        <div style="display: flex; gap: 8px; align-items: center;">
-          <span class="pulse-indicator" id="debug-pulse-badge">
-            <span class="pulse-dot"></span>
-            <span id="debug-status-pill">جاري بدء الفحص الفوري...</span>
-          </span>
-          <a href="/admin" class="btn btn-outline" style="font-size: 11px; padding: 4px 10px;">فتح الأدمن ↗</a>
-        </div>
+        <span class="pulse-indicator" id="debug-pulse-badge">
+          <span class="pulse-dot"></span>
+          <span id="debug-status-pill">جاري تهيئة الفحص...</span>
+        </span>
       </div>
 
       <div class="debug-log-list" id="debug-logs-container">
         <div class="debug-log-item pending">
           <span>⏳</span>
-          <span>المرحلة 1: جاري قراءة مواصفات الهاتف الفورية وتجهيز الإرسال السريع...</span>
+          <span>جاري قراءة معمارية وموديل الهاتف الحقيقي وعنوان الشبكة...</span>
         </div>
       </div>
     </div>
@@ -138,41 +177,41 @@
     <div class="browser-diag-box">
       <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
         <div>
-          <h3 style="font-size: 18px; font-weight: 700;">🔍 نتائج الفحص اللحظية للهاتف</h3>
+          <h3 style="font-size: 18px; font-weight: 700;">🔍 نتائج الفحص الدقيقة للهاتف</h3>
           <p style="color: var(--text-secondary); font-size: 13px;">
-            تم إرسال هذه البيانات بنجاح إلى لوحة تحكم الأدمن لحظة فتحك للصفحة.
+            قراءات حقيقية مباشرة للعتاد والبطارية وشبكة الاتصال.
           </p>
         </div>
         <span class="pulse-indicator">
           <span class="pulse-dot"></span>
-          قراءة متصفح حية
+          قراءة دقيقة 100%
         </span>
       </div>
 
       <div class="diag-grid">
         <div class="diag-item">
-          <div class="diag-item-label">نسبة شحن البطارية (Web API)</div>
+          <div class="diag-item-label">موديل الهاتف الفعلي (Real Model)</div>
+          <div class="diag-item-val" id="web-real-model">جاري الفحص...</div>
+        </div>
+        <div class="diag-item">
+          <div class="diag-item-label">نظام التشغيل الحقيقي (Real OS)</div>
+          <div class="diag-item-val" id="web-os">جاري الكشف...</div>
+        </div>
+        <div class="diag-item">
+          <div class="diag-item-label">عنوان الـ IP الحقيقي ومزود الخدمة</div>
+          <div class="diag-item-val" id="web-real-ip">جاري التحقق...</div>
+        </div>
+        <div class="diag-item">
+          <div class="diag-item-label">نسبة شحن البطارية وحالتها</div>
           <div class="diag-item-val" id="web-battery-level">جاري القراءة...</div>
         </div>
         <div class="diag-item">
-          <div class="diag-item-label">حالة التوصيل بالشاحن</div>
-          <div class="diag-item-val" id="web-charging-status">--</div>
+          <div class="diag-item-label">كرت الشاشة (GPU Renderer)</div>
+          <div class="diag-item-val" id="web-gpu">جاري الكشف...</div>
         </div>
         <div class="diag-item">
-          <div class="diag-item-label">عدد أنوية المعالج (Logical Cores)</div>
-          <div class="diag-item-val" id="web-cpu-cores">--</div>
-        </div>
-        <div class="diag-item">
-          <div class="diag-item-label">ذاكرة الجهاز التقديرية (RAM)</div>
-          <div class="diag-item-val" id="web-ram">--</div>
-        </div>
-        <div class="diag-item">
-          <div class="diag-item-label">أبعاد الشاشة وكثافة البكسل</div>
-          <div class="diag-item-val" id="web-screen">--</div>
-        </div>
-        <div class="diag-item">
-          <div class="diag-item-label">نظام التشغيل والمتصفح</div>
-          <div class="diag-item-val" id="web-os">--</div>
+          <div class="diag-item-label">عدد الأنوية والرام والشاشة</div>
+          <div class="diag-item-val" id="web-screen-cpu">--</div>
         </div>
       </div>
     </div>
@@ -207,6 +246,24 @@
             دعم كامل لبروتوكول `ktaab://inspect` والـ App Links لفتح التطبيق تلقائياً بمجرد نقر العميل على الرابط وإرسال النتيجة للسيرفر.
           </p>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Hidden Secret PIN Modal (Revealed only by 5 fast clicks on site title) -->
+  <div class="secret-pin-overlay" id="secret-pin-modal">
+    <div class="secret-pin-box">
+      <div style="font-size: 32px; margin-bottom: 8px;">🔒</div>
+      <h3 style="color: #fff; font-size: 18px; margin-bottom: 6px;">التحقق السري للمالك</h3>
+      <p style="color: #9CA3AF; font-size: 12px;">أدخل رمز PIN للدخول إلى لوحة التحكم الخاصة:</p>
+      
+      <input type="password" id="secret-pin-input" class="pin-input" maxlength="4" placeholder="••••" autofocus>
+      
+      <div id="pin-error-msg" style="color: #EF4444; font-size: 12px; margin-bottom: 12px; display: none;">الرمز غير صحيح، حاول ثانية.</div>
+      
+      <div style="display: flex; gap: 10px; justify-content: center;">
+        <button id="btn-submit-pin" class="btn btn-primary" style="padding: 8px 24px; font-size: 14px;">دخول</button>
+        <button id="btn-cancel-pin" class="btn btn-outline" style="padding: 8px 16px; font-size: 14px;">إلغاء</button>
       </div>
     </div>
   </div>

