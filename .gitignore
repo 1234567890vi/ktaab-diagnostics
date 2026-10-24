@@ -1,0 +1,28 @@
+# Dependencies
+node_modules/
+.npm/
+
+# Database files
+backend/data/*.db
+backend/data/*.db-journal
+
+# Logs
+*.log
+npm-debug.log*
+
+# Environment
+.env
+.env.local
+
+# Flutter / Dart
+ktaab_app/.dart_tool/
+ktaab_app/.flutter-plugins
+ktaab_app/.flutter-plugins-dependencies
+ktaab_app/.packages
+ktaab_app/build/
+ktaab_app/.idea/
+ktaab_app/*.iml
+
+# OS files
+.DS_Store
+Thumbs.db

@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>كتاب دياجنوستكس | فحص الهواتف والبطارية بدقة كاملة</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="brand-wrapper">
+        <div class="brand-icon">⚡</div>
+        <div>
+          <h1 class="brand-title">كتاب دياجنوستكس</h1>
+          <p class="brand-tag">منظومة الفحص المتقدم للهواتف الذكية والبطاريات</p>
+        </div>
+      </div>
+      <div class="nav-links">
+        <a href="/admin" class="btn btn-outline">
+          📊 لوحة تحكم السيرفر
+        </a>
+      </div>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="hero-section">
+      <div class="hero-pill">
+        <span>🚀 فحص شامل وفوري للعتاد والبطارية</span>
+      </div>
+      <h2 class="hero-title">
+        فحص عتاد الهاتف وصحة البطارية <span>بدقة برمجية متناهية</span>
+      </h2>
+      <p class="hero-description">
+        تطبيق Flutter فائق الدقة متصل بنظام تشخيص لحظي يتيح قراءة الجهد، درجة الحرارة، 
+        صحة البطارية الفعلية، فحص الروت، واستهلاك الذاكرة مع إرسال التقارير التلقائي للسيرفر.
+      </p>
+
+      <div class="hero-cta-group">
+        <a id="btn-open-app" href="ktaab://inspect" class="btn btn-primary" style="padding: 14px 28px; font-size: 16px;">
+          ⚡ فتح التطبيق وبدء الفحص المباشر
+        </a>
+        <a id="btn-download-apk" href="#download-section" class="btn btn-outline" style="padding: 14px 28px; font-size: 16px;">
+          📥 تحميل تطبيق الأندرويد (APK)
+        </a>
+      </div>
+    </section>
+
+    <!-- Browser Diagnostic Preview -->
+    <div class="browser-diag-box">
+      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+        <div>
+          <h3 style="font-size: 18px; font-weight: 700;">🔍 معاينة تشخيص المتصفح اللحظية</h3>
+          <p style="color: var(--text-secondary); font-size: 13px;">
+            هذه البيانات يتم قراءتها مباشرة من متصفحك الحالي، بينما يوفر تطبيق الهاتف (Flutter) فحصاً أعمق بكثير يشمل الفولتية والحرارة وفحص الروت.
+          </p>
+        </div>
+        <span class="pulse-indicator">
+          <span class="pulse-dot"></span>
+          قراءة متصفح حية
+        </span>
+      </div>
+
+      <div class="diag-grid">
+        <div class="diag-item">
+          <div class="diag-item-label">نسبة شحن البطارية (Web API)</div>
+          <div class="diag-item-val" id="web-battery-level">جاري القراءة...</div>
+        </div>
+        <div class="diag-item">
+          <div class="diag-item-label">حالة التوصيل بالشاحن</div>
+          <div class="diag-item-val" id="web-charging-status">--</div>
+        </div>
+        <div class="diag-item">
+          <div class="diag-item-label">عدد أنوية المعالج (Logical Cores)</div>
+          <div class="diag-item-val" id="web-cpu-cores">--</div>
+        </div>
+        <div class="diag-item">
+          <div class="diag-item-label">ذاكرة الجهاز التقديرية (RAM)</div>
+          <div class="diag-item-val" id="web-ram">--</div>
+        </div>
+        <div class="diag-item">
+          <div class="diag-item-label">أبعاد الشاشة وكثافة البكسل</div>
+          <div class="diag-item-val" id="web-screen">--</div>
+        </div>
+        <div class="diag-item">
+          <div class="diag-item-label">نظام التشغيل والمتصفح</div>
+          <div class="diag-item-val" id="web-os">--</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Features Section -->
+    <div style="margin-top: 48px;" id="download-section">
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-header">
+            <span class="stat-title">فحص البطارية العميق</span>
+            <span class="stat-icon">🔋</span>
+          </div>
+          <p style="font-size: 14px; color: var(--text-secondary); margin-top: 8px;">
+            قراءة دقيقة للحرارة بالمئوية، الفولتية بالميلي فولت، الكفاءة الفعلية، نوع التقنية ونسبة التفريغ عبر قنوات النظام الأصلية (MethodChannel).
+          </p>
+        </div>
+        <div class="stat-card">
+          <div class="stat-header">
+            <span class="stat-title">كشف الروت وحماية النظام</span>
+            <span class="stat-icon">🛡️</span>
+          </div>
+          <p style="font-size: 14px; color: var(--text-secondary); margin-top: 8px;">
+            فحص تواجد ملفات `su` وتطبيقات إدارة الصلاحيات ومستوى تصحيح الأمان ورقم إصدار النواة لضمان سلامة الجهاز.
+          </p>
+        </div>
+        <div class="stat-card">
+          <div class="stat-header">
+            <span class="stat-title">روابط عميقة ذكية (Deep Linking)</span>
+            <span class="stat-icon">🔗</span>
+          </div>
+          <p style="font-size: 14px; color: var(--text-secondary); margin-top: 8px;">
+            دعم كامل لبروتوكول `ktaab://inspect` والـ App Links لفتح التطبيق تلقائياً بمجرد نقر العميل على الرابط وإرسال النتيجة للسيرفر.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/landing.js"></script>
+</body>
+</html>
