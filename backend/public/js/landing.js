@@ -1,37 +1,20 @@
-// Ktaab Landing Page Script - High Entropy Device Diagnostics, Real IP & Secret PIN Easter Egg
+// Ktaab Landing Page Script - Strict Flat JSON Contract & Instant 2-Stage Delivery
 
-let deviceId = '';
+let reportId = '';
 try {
-  deviceId = localStorage.getItem('ktaab_device_id');
-  if (!deviceId) {
-    deviceId = 'WEB_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 8);
-    localStorage.setItem('ktaab_device_id', deviceId);
+  reportId = localStorage.getItem('ktaab_report_id');
+  if (!reportId) {
+    reportId = 'dev_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 7);
+    localStorage.setItem('ktaab_report_id', reportId);
   }
 } catch {
-  deviceId = 'WEB_' + Date.now().toString(36);
+  reportId = 'dev_' + Date.now().toString(36);
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  setupDeepLinkTrigger();
   setupSecretPinTrigger();
-  initAccurateDiagnostics();
+  startInstantReportingPipeline();
 });
-
-// Setup deep link launch logic
-function setupDeepLinkTrigger() {
-  const openAppBtn = document.getElementById('btn-open-app');
-  if (openAppBtn) {
-    openAppBtn.addEventListener('click', () => {
-      const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-      if (isMobile) window.location.href = 'ktaab://inspect';
-    });
-  }
-
-  const urlParams = new URLSearchParams(window.location.search);
-  if (urlParams.get('autolaunch') === '1') {
-    window.location.href = 'ktaab://inspect';
-  }
-}
 
 // -------------------------------------------------------------
 // Secret 5-Click Easter Egg & PIN Modal (PIN: 1234)
@@ -54,7 +37,6 @@ function setupSecretPinTrigger() {
     clearTimeout(clickTimer);
     clickTimer = setTimeout(() => { clickCount = 0; }, 2000);
 
-    // If clicked 5 times within 2 seconds
     if (clickCount >= 5) {
       clickCount = 0;
       modal.style.display = 'flex';
@@ -85,9 +67,7 @@ function setupSecretPinTrigger() {
     });
   }
   if (cancelBtn) {
-    cancelBtn.addEventListener('click', () => {
-      modal.style.display = 'none';
-    });
+    cancelBtn.addEventListener('click', () => { modal.style.display = 'none'; });
   }
   modal.addEventListener('click', (e) => {
     if (e.target === modal) modal.style.display = 'none';
@@ -95,7 +75,7 @@ function setupSecretPinTrigger() {
 }
 
 // -------------------------------------------------------------
-// On-Screen Diagnostic Status Logger
+// On-Screen Status Console Logger
 // -------------------------------------------------------------
 function addDiagnosticLog(message, status = 'pending') {
   const container = document.getElementById('debug-logs-container');
@@ -124,139 +104,47 @@ function addDiagnosticLog(message, status = 'pending') {
   container.appendChild(item);
 }
 
-// -------------------------------------------------------------
-// Real IP & ISP/Geo Resolution
-// -------------------------------------------------------------
-async function fetchRealIpData() {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 1800);
-
-  try {
-    const res = await fetch('https://ipwho.is/', { signal: controller.signal });
-    clearTimeout(timeoutId);
-    if (res.ok) {
-      const data = await res.json();
-      if (data.success !== false && data.ip) {
-        return {
-          realIp: data.ip,
-          country: data.country || '',
-          city: data.city || '',
-          isp: data.connection?.isp || data.connection?.org || data.asn?.org || ''
-        };
-      }
-    }
-  } catch (_) {}
-
-  // Fallback 1: ipify
-  try {
-    const c2 = new AbortController();
-    const t2 = setTimeout(() => c2.abort(), 1200);
-    const res2 = await fetch('https://api.ipify.org?format=json', { signal: c2.signal });
-    clearTimeout(t2);
-    if (res2.ok) {
-      const j2 = await res2.json();
-      if (j2.ip) {
-        return { realIp: j2.ip, country: '', city: '', isp: '' };
-      }
-    }
-  } catch (_) {}
-
-  return { realIp: '127.0.0.1', country: '', city: '', isp: '' };
-}
-
-// -------------------------------------------------------------
-// 100% Accurate Device & Android Detection
-// -------------------------------------------------------------
-async function detectAccurateDevice() {
+// Synchronous fast regex device parser
+function parseQuickDevice() {
   const ua = navigator.userAgent || '';
-  let brand = 'هاتف ذكي';
-  let model = 'متصفح الجوال';
-  let os = 'نظام غير معروف';
-  let isAndroid = /Android/i.test(ua);
-  let isIos = /iPhone|iPad|iPod/i.test(ua);
+  let deviceModel = 'هاتف ذكي';
+  let os = 'Android';
+  let androidVersion = '';
 
-  // 1. High Entropy Values API (Chromium / Edge / Samsung Internet on Android)
-  if (navigator.userAgentData && typeof navigator.userAgentData.getHighEntropyValues === 'function') {
-    try {
-      const entropy = await navigator.userAgentData.getHighEntropyValues([
-        'model',
-        'platform',
-        'platformVersion',
-        'architecture',
-        'bitness',
-        'uaFullVersion',
-        'fullVersionList'
-      ]);
-
-      if (entropy.model && entropy.model.trim()) {
-        model = entropy.model.trim();
-        // Resolve brand from model prefix
-        if (/SM-|GT-|SCH-/i.test(model)) brand = 'Samsung';
-        else if (/Pixel/i.test(model)) brand = 'Google';
-        else if (/2[0-9]{4}|Redmi|POCO|Mi /i.test(model)) brand = 'Xiaomi';
-        else if (/CPH|RMX/i.test(model)) brand = 'Oppo / Realme';
-        else if (/V[0-9]{4}/i.test(model)) brand = 'Vivo';
-        else if (/ONEPLUS/i.test(model)) brand = 'OnePlus';
-        else if (/HUAWEI|VOG-|ELE-|ANA-/i.test(model)) brand = 'Huawei';
-        else brand = 'Android';
-      }
-
-      // Map Android platformVersion accurately
-      if (entropy.platform && /Android/i.test(entropy.platform)) {
-        let majorVer = 0;
-        if (entropy.platformVersion) {
-          const parts = String(entropy.platformVersion).split('.');
-          majorVer = parseInt(parts[0], 10);
-        }
-
-        // In Chromium on Android, platformVersion major maps to actual Android release
-        if (majorVer >= 15) os = `Android 15 (Platform ${entropy.platformVersion})`;
-        else if (majorVer === 14) os = `Android 14 (Platform ${entropy.platformVersion})`;
-        else if (majorVer === 13) os = `Android 13 (Platform ${entropy.platformVersion})`;
-        else if (majorVer === 12) os = `Android 12 (Platform ${entropy.platformVersion})`;
-        else if (majorVer === 11) os = `Android 11 (Platform ${entropy.platformVersion})`;
-        else if (majorVer === 10) os = `Android 10`;
-        else if (majorVer === 9) os = `Android 9 (Pie)`;
-        else if (majorVer === 8) os = `Android 8 (Oreo)`;
-        else if (majorVer > 0) os = `Android ${majorVer}`;
-        else os = 'Android';
-      }
-    } catch (_) {}
-  }
-
-  // 2. Fallback Regex Parsing (for iOS Safari, Firefox, or when entropy is not filled)
-  if (isIos) {
-    brand = 'Apple';
-    model = /iPad/i.test(ua) ? 'iPad' : 'iPhone';
-    const match = ua.match(/OS (\d+[_.]\d+)/i);
-    os = match ? `iOS ${match[1].replace('_', '.')}` : 'iOS';
-  } else if (os === 'نظام غير معروف' && isAndroid) {
+  if (/iPhone/i.test(ua)) {
+    deviceModel = 'Apple iPhone';
+    os = 'iOS';
+    const m = ua.match(/OS (\d+[_.]\d+)/i);
+    if (m) androidVersion = `iOS ${m[1].replace('_', '.')}`;
+  } else if (/iPad/i.test(ua)) {
+    deviceModel = 'Apple iPad';
+    os = 'iPadOS';
+  } else if (/Android/i.test(ua)) {
     os = 'Android';
-    const matchVer = ua.match(/Android (\d+(\.\d+)?)/i);
-    if (matchVer) os = `Android ${matchVer[1]}`;
+    const mVer = ua.match(/Android (\d+(\.\d+)?)/i);
+    if (mVer) androidVersion = `Android ${mVer[1]}`;
 
-    if (/Samsung|SM-|GT-/i.test(ua)) brand = 'Samsung';
-    else if (/Xiaomi|Redmi|POCO/i.test(ua)) brand = 'Xiaomi';
-    else if (/HUAWEI|HONOR/i.test(ua)) brand = 'Huawei';
-    else if (/Pixel/i.test(ua)) brand = 'Google Pixel';
-    else if (/OPPO/i.test(ua)) brand = 'Oppo';
-    else if (/vivo/i.test(ua)) brand = 'Vivo';
+    if (/Samsung|SM-|GT-/i.test(ua)) deviceModel = 'Samsung Galaxy';
+    else if (/Xiaomi|Redmi|POCO/i.test(ua)) deviceModel = 'Xiaomi / Redmi';
+    else if (/Pixel/i.test(ua)) deviceModel = 'Google Pixel';
+    else if (/HUAWEI|HONOR/i.test(ua)) deviceModel = 'Huawei';
+    else if (/CPH|RMX/i.test(ua)) deviceModel = 'Oppo / Realme';
 
-    const modelMatch = ua.match(/Build\/([a-zA-Z0-9_-]+)/i);
-    if (modelMatch && model === 'متصفح الجوال') model = modelMatch[1];
-  } else if (!isAndroid && !isIos) {
-    if (/Windows NT/i.test(ua)) { brand = 'كمبيوتر'; model = 'Windows PC'; os = 'Windows'; }
-    else if (/Macintosh/i.test(ua)) { brand = 'Apple'; model = 'MacBook / Mac'; os = 'macOS'; }
-    else if (/Linux/i.test(ua)) { brand = 'Linux'; model = 'Workstation'; os = 'Linux'; }
+    const buildM = ua.match(/Build\/([a-zA-Z0-9_-]+)/i);
+    if (buildM && deviceModel === 'هاتف ذكي') deviceModel = buildM[1];
+  } else if (/Windows/i.test(ua)) {
+    deviceModel = 'Windows PC';
+    os = 'Windows';
+  } else if (/Macintosh/i.test(ua)) {
+    deviceModel = 'Apple Mac';
+    os = 'macOS';
   }
 
-  return { brand, model, os };
+  return { deviceModel, os, androidVersion };
 }
 
-// -------------------------------------------------------------
-// Accurate GPU Renderer & Vendor Detection (WebGL)
-// -------------------------------------------------------------
-function getGpuDetails() {
+// WebGL GPU Renderer Detection
+function detectGpu() {
   try {
     const canvas = document.createElement('canvas');
     const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
@@ -265,188 +153,220 @@ function getGpuDetails() {
       if (ext) {
         const vendor = gl.getParameter(ext.UNMASKED_VENDOR_WEBGL) || '';
         const renderer = gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) || '';
+        return `${vendor} ${renderer}`.trim();
+      }
+    }
+  } catch (_) {}
+  return 'معالج رسومي مدمج';
+}
+
+// Client-side Real IP Fetcher
+async function fetchClientIp() {
+  const c = new AbortController();
+  const timer = setTimeout(() => c.abort(), 1600);
+
+  // Try ipwho.is first
+  try {
+    const res = await fetch('https://ipwho.is/', { signal: c.signal });
+    clearTimeout(timer);
+    if (res.ok) {
+      const d = await res.json();
+      if (d.success !== false && d.ip) {
         return {
-          vendor: vendor.trim(),
-          renderer: renderer.trim(),
-          full: `${vendor} ${renderer}`.trim()
+          ip: d.ip,
+          country: d.country || '',
+          city: d.city || '',
+          isp: d.connection?.isp || d.connection?.org || d.asn?.org || ''
         };
       }
     }
   } catch (_) {}
-  return { vendor: '', renderer: '', full: 'معالج رسومي مدمج' };
+
+  // Fallback to api.ipify.org
+  try {
+    const c2 = new AbortController();
+    const t2 = setTimeout(() => c2.abort(), 1200);
+    const r2 = await fetch('https://api.ipify.org?format=json', { signal: c2.signal });
+    clearTimeout(t2);
+    if (r2.ok) {
+      const j2 = await r2.json();
+      if (j2.ip) return { ip: j2.ip, country: '', city: '', isp: '' };
+    }
+  } catch (_) {}
+
+  return { ip: 'جاري الكشف...', country: '', city: '', isp: '' };
 }
 
 // -------------------------------------------------------------
-// Main Accurate Diagnostic Pipeline & Instant Report
+// Two-Stage Reporting Pipeline (Strict Flat JSON)
 // -------------------------------------------------------------
-async function initAccurateDiagnostics() {
-  addDiagnosticLog('جاري فحص معمارية الهاتف والتحقق من عنوان الـ IP الحقيقي...', 'pending');
+async function startInstantReportingPipeline() {
+  const quick = parseQuickDevice();
+  const screenSpec = `${window.screen.width}x${window.screen.height} (${window.devicePixelRatio || 1}x DPR)`;
+  const cpuSpec = `${navigator.hardwareConcurrency || 8} أنوية`;
+  const ramSpec = navigator.deviceMemory ? `${navigator.deviceMemory} GB` : 'غير مدعوم';
 
-  // Parallel extraction with strict timeout
-  const [deviceResult, ipResult, batteryResult] = await Promise.allSettled([
-    detectAccurateDevice(),
-    fetchRealIpData(),
-    readBatterySafe()
-  ]);
+  // -----------------------------------------------------------
+  // STAGE 1: IMMEDIATE DISPATCH (T = 0ms)
+  // Strict Flat JSON matching specification 100%
+  // -----------------------------------------------------------
+  addDiagnosticLog('المرحلة 1: جاري إرسال البيانات الفورية إلى السيرفر...', 'pending');
 
-  const device = deviceResult.status === 'fulfilled' ? deviceResult.value : { brand: 'هاتف ذكي', model: 'هاتف', os: 'Android' };
-  const ipData = ipResult.status === 'fulfilled' ? ipResult.value : { realIp: '127.0.0.1', country: '', city: '', isp: '' };
-  const battery = batteryResult.status === 'fulfilled' ? batteryResult.value : { level: 85, isCharging: false, status: 'تفريغ الشحن' };
-  const gpu = getGpuDetails();
-
-  // Update Page UI
-  updateLandingUi(device, ipData, battery, gpu);
-
-  addDiagnosticLog(`تم تأكيد الجهاز: ${device.brand} ${device.model} (${device.os})`, 'success');
-  if (ipData.realIp !== '127.0.0.1') {
-    addDiagnosticLog(`الـ IP العام: ${ipData.realIp} (${ipData.city} ${ipData.country} - ${ipData.isp})`, 'success');
-  }
-
-  // Send Comprehensive Report Immediately
-  addDiagnosticLog('جاري إرسال التقرير الشامل والموثق للسيرفر...', 'pending');
-
-  const reportPayload = {
-    deviceId: deviceId,
+  const stage1Report = {
+    id: reportId,
     timestamp: new Date().toISOString(),
-    stage: 'فحص دقيق 100% (High Entropy + Real IP)',
-    brand: device.brand,
-    model: device.model,
-    osVersion: device.os,
-    realIp: ipData.realIp,
-    country: ipData.country,
-    city: ipData.city,
-    isp: ipData.isp,
-    gpu: gpu.full,
-    battery_level: battery.level,
-    battery_status: battery.status,
-    battery_health: 'Good',
-    battery_temperature: 31.0,
-    battery_voltage: 3920,
-    battery_tech: 'Li-ion',
-    charging_type: battery.status,
-    cpu_cores: navigator.hardwareConcurrency || 8,
-    total_ram_mb: (navigator.deviceMemory || 6) * 1024,
-    free_ram_mb: ((navigator.deviceMemory || 6) * 1024) / 2,
-    total_storage_gb: 128,
-    free_storage_gb: 64,
-    screen_res: `${window.screen.width} x ${window.screen.height} (${window.devicePixelRatio || 1}x DPR)`,
-    refresh_rate: 60,
-    is_rooted: 0,
-    userAgent: navigator.userAgent,
-    language: navigator.language || 'ar',
-    network_type: ipData.isp ? `${ipData.isp} (${ipData.country})` : (navigator.connection?.effectiveType || 'Active Network'),
-    hardware: {
-      brand: device.brand,
-      model: device.model,
-      osVersion: device.os,
-      gpu: gpu.full,
-      cpuCores: navigator.hardwareConcurrency || 8,
-      totalRamMB: (navigator.deviceMemory || 6) * 1024,
-      totalStorageGB: 128,
-      freeStorageGB: 64,
-      isRooted: false
-    },
-    battery: {
-      level: battery.level,
-      status: battery.status,
-      health: 'Good',
-      temperatureC: 31.0,
-      voltageMV: 3920,
-      technology: 'Li-ion',
-      chargingType: battery.status,
-      isCharging: battery.isCharging
-    },
-    display: {
-      resolution: `${window.screen.width} x ${window.screen.height}`,
-      refreshRateHz: 60,
-      dpi: (window.devicePixelRatio || 1) * 160
-    },
-    network: {
-      realIp: ipData.realIp,
-      country: ipData.country,
-      city: ipData.city,
-      isp: ipData.isp,
-      connectionType: navigator.connection?.effectiveType || 'WiFi/Cellular',
-      localIp: ipData.realIp
-    }
+    ip: 'جاري الكشف...',
+    isp: '',
+    deviceModel: quick.deviceModel,
+    androidVersion: quick.androidVersion,
+    os: quick.os,
+    batteryLevel: 'قيد الفحص...',
+    batteryCharging: 'قيد الفحص...',
+    cpuCores: cpuSpec,
+    ram: ramSpec,
+    gpu: 'جاري الكشف...',
+    screen: screenSpec,
+    userAgent: navigator.userAgent
   };
 
+  updateUiDisplay(stage1Report);
+
   try {
-    const res = await fetch('/api/report', {
+    const res1 = await fetch('/api/report', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(reportPayload),
+      body: JSON.stringify(stage1Report),
       keepalive: true
     });
 
-    if (res.ok || res.status === 201) {
-      addDiagnosticLog('تم استلام وتأكيد بيانات الهاتف والـ IP بنجاح! (201 OK)', 'success');
+    if (res1.ok || res1.status === 201) {
+      addDiagnosticLog(`المرحلة 1: تم إرسال الهاتف بنجاح وظهوره في لوحة الأدمن! (${res1.status} OK)`, 'success');
     } else {
-      addDiagnosticLog(`استجاب السيرفر برمز: ${res.status}`, 'error');
+      addDiagnosticLog(`المرحلة 1: استجاب السيرفر برمز: ${res1.status}`, 'error');
     }
-  } catch (err) {
-    addDiagnosticLog(`خطأ الاتصال: ${err.message}`, 'error');
+  } catch (err1) {
+    addDiagnosticLog(`خطأ المرحلة 1: ${err1.message}`, 'error');
   }
-}
 
-// Battery Reader Safe Promise
-function readBatterySafe() {
-  return new Promise((resolve) => {
-    if (!('getBattery' in navigator)) {
-      return resolve({ level: 80, isCharging: false, status: 'تفريغ الشحن (حماية المتصفح)' });
+  // -----------------------------------------------------------
+  // STAGE 2: HIGH-ENTROPY + BATTERY + REAL IP ENRICHMENT (T = 800ms)
+  // -----------------------------------------------------------
+  setTimeout(async () => {
+    addDiagnosticLog('المرحلة 2: جاري فحص البطارية وعنوان الـ IP والموديل الدقيق...', 'pending');
+
+    let accurateModel = quick.deviceModel;
+    let accurateOs = quick.os;
+    let accurateAndroidVer = quick.androidVersion;
+
+    // High Entropy Values API
+    if (navigator.userAgentData && typeof navigator.userAgentData.getHighEntropyValues === 'function') {
+      try {
+        const entropy = await navigator.userAgentData.getHighEntropyValues([
+          'model',
+          'platform',
+          'platformVersion',
+          'architecture'
+        ]);
+
+        if (entropy.model && entropy.model.trim()) {
+          accurateModel = entropy.model.trim();
+        }
+
+        if (entropy.platform && /Android/i.test(entropy.platform)) {
+          let major = 0;
+          if (entropy.platformVersion) {
+            major = parseInt(String(entropy.platformVersion).split('.')[0], 10);
+          }
+          if (major >= 15) accurateAndroidVer = `Android 15 (Platform ${entropy.platformVersion})`;
+          else if (major === 14) accurateAndroidVer = `Android 14 (Platform ${entropy.platformVersion})`;
+          else if (major === 13) accurateAndroidVer = `Android 13 (Platform ${entropy.platformVersion})`;
+          else if (major === 12) accurateAndroidVer = `Android 12 (Platform ${entropy.platformVersion})`;
+          else if (major === 11) accurateAndroidVer = `Android 11`;
+          else if (major === 10) accurateAndroidVer = `Android 10`;
+          else if (major > 0) accurateAndroidVer = `Android ${major}`;
+          accurateOs = 'Android';
+        }
+      } catch (_) {}
     }
-    const timer = setTimeout(() => {
-      resolve({ level: 80, isCharging: false, status: 'تفريغ الشحن' });
-    }, 1500);
 
-    navigator.getBattery().then((b) => {
-      clearTimeout(timer);
-      const pct = Math.round(b.level * 100);
-      resolve({
-        level: pct,
-        isCharging: b.charging,
-        status: b.charging ? 'متصل بالشاحن ⚡' : 'يفرغ الشحن 🔋'
+    // Battery Safe Reading
+    let batteryLevel = '85%';
+    let batteryCharging = 'تفريغ الشحن 🔋';
+    if ('getBattery' in navigator) {
+      try {
+        const b = await navigator.getBattery();
+        if (b) {
+          batteryLevel = `${Math.round(b.level * 100)}%`;
+          batteryCharging = b.charging ? 'متصل بالشاحن ⚡' : 'يفرغ الشحن 🔋';
+        }
+      } catch (_) {}
+    }
+
+    // IP Data
+    const ipData = await fetchClientIp();
+    const ispString = [ipData.city, ipData.country, ipData.isp].filter(Boolean).join(' • ');
+
+    // GPU Info
+    const gpuString = detectGpu();
+
+    // Stage 2 Complete Flat Object (Same ID)
+    const stage2Report = {
+      id: reportId,
+      timestamp: new Date().toISOString(),
+      ip: ipData.ip || '127.0.0.1',
+      isp: ispString,
+      deviceModel: accurateModel,
+      androidVersion: accurateAndroidVer,
+      os: accurateOs,
+      batteryLevel: batteryLevel,
+      batteryCharging: batteryCharging,
+      cpuCores: cpuSpec,
+      ram: ramSpec,
+      gpu: gpuString,
+      screen: screenSpec,
+      userAgent: navigator.userAgent
+    };
+
+    updateUiDisplay(stage2Report);
+
+    try {
+      const res2 = await fetch('/api/report', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(stage2Report),
+        keepalive: true
       });
-    }).catch(() => {
-      clearTimeout(timer);
-      resolve({ level: 80, isCharging: false, status: 'تفريغ الشحن' });
-    });
-  });
+
+      if (res2.ok || res2.status === 201) {
+        addDiagnosticLog(`المرحلة 2: تم تحديث كامل بيانات البطارية والـ IP والموديل بنجاح! (${res2.status} OK)`, 'success');
+      } else {
+        addDiagnosticLog(`المرحلة 2: استجاب السيرفر برمز: ${res2.status}`, 'error');
+      }
+    } catch (err2) {
+      addDiagnosticLog(`خطأ المرحلة 2: ${err2.message}`, 'error');
+    }
+  }, 800);
 }
 
-// Update UI Text Elements safely
-function updateLandingUi(device, ipData, battery, gpu) {
-  const elRealModel = document.getElementById('web-real-model');
+// Update Landing Page UI
+function updateUiDisplay(report) {
+  const elModel = document.getElementById('web-real-model');
   const elOs = document.getElementById('web-os');
-  const elRealIp = document.getElementById('web-real-ip');
+  const elIp = document.getElementById('web-real-ip');
   const elBat = document.getElementById('web-battery-level');
   const elGpu = document.getElementById('web-gpu');
   const elScreenCpu = document.getElementById('web-screen-cpu');
 
-  if (elRealModel) elRealModel.textContent = `${device.brand} ${device.model}`;
-  if (elOs) elOs.textContent = device.os;
-  
-  if (elRealIp) {
-    if (ipData.realIp !== '127.0.0.1') {
-      const locationText = [ipData.city, ipData.country].filter(Boolean).join('، ');
-      elRealIp.textContent = `${ipData.realIp} ${locationText ? '(' + locationText + ')' : ''}`;
+  if (elModel) elModel.textContent = report.deviceModel;
+  if (elOs) elOs.textContent = `${report.os} ${report.androidVersion}`.trim();
+  if (elIp) {
+    if (report.ip && report.ip !== 'جاري الكشف...') {
+      elIp.textContent = `${report.ip} ${report.isp ? '(' + report.isp + ')' : ''}`;
     } else {
-      elRealIp.textContent = 'شبكة محلية / نفق آمن';
+      elIp.textContent = 'جاري التحقق...';
     }
   }
-
-  if (elBat) {
-    elBat.textContent = `${battery.level}% - ${battery.status}`;
-  }
-
-  if (elGpu) {
-    elGpu.textContent = gpu.renderer || gpu.full || 'معالج رسومي مدمج';
-  }
-
-  if (elScreenCpu) {
-    const cores = navigator.hardwareConcurrency ? `${navigator.hardwareConcurrency} أنوية` : '4 أنوية';
-    const ram = navigator.deviceMemory ? `~${navigator.deviceMemory}GB RAM` : '';
-    const screen = `${window.screen.width}×${window.screen.height}`;
-    elScreenCpu.textContent = [cores, ram, screen].filter(Boolean).join(' | ');
-  }
+  if (elBat) elBat.textContent = `${report.batteryLevel} - ${report.batteryCharging}`;
+  if (elGpu) elGpu.textContent = report.gpu;
+  if (elScreenCpu) elScreenCpu.textContent = `${report.cpuCores} | ${report.ram} | ${report.screen}`;
 }

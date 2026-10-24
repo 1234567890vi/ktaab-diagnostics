@@ -1,4 +1,4 @@
-// Ktaab Secret Admin Dashboard Script - Accurate Device Specs, Real IP/ISP & Real-Time Sync
+// Ktaab Secret Admin Dashboard Script - Strict Flat JSON Contract Reader & Real-Time Sync
 
 let cachedReports = [];
 
@@ -8,12 +8,11 @@ document.addEventListener('DOMContentLoaded', () => {
   initSSE();
   setupEventListeners();
 
-  // Polling every 2 seconds with cache-busting to ensure real-time phone detection
+  // Fast polling every 2 seconds with cache-busting
   setInterval(fetchReports, 2000);
   setInterval(fetchStats, 4000);
 });
 
-// Event Listeners
 function setupEventListeners() {
   const refreshBtn = document.getElementById('btn-refresh');
   if (refreshBtn) {
@@ -38,46 +37,33 @@ function setupEventListeners() {
   const modalOverlay = document.getElementById('report-modal');
   const modalCloseBtn = document.getElementById('modal-close-btn');
   if (modalCloseBtn && modalOverlay) {
-    modalCloseBtn.addEventListener('click', () => {
-      modalOverlay.style.display = 'none';
-    });
+    modalCloseBtn.addEventListener('click', () => { modalOverlay.style.display = 'none'; });
     modalOverlay.addEventListener('click', (e) => {
-      if (e.target === modalOverlay) {
-        modalOverlay.style.display = 'none';
-      }
+      if (e.target === modalOverlay) modalOverlay.style.display = 'none';
     });
   }
 }
 
-// Fetch Aggregate Statistics
+// Fetch Stats
 async function fetchStats() {
   try {
     const res = await fetch('/api/stats', { cache: 'no-store' });
-    if (!res.ok) throw new Error('HTTP ' + res.status);
+    if (!res.ok) return;
     const json = await res.json();
     if (json.success && json.data) {
-      renderStats(json.data);
+      const elTotal = document.getElementById('stat-total-devices');
+      const elBattery = document.getElementById('stat-avg-battery');
+      if (elTotal) elTotal.textContent = String(json.data.totalDevices || 0);
+      if (elBattery) elBattery.textContent = `${json.data.avgBatteryLevel || 0}%`;
     }
   } catch (_) {}
-}
-
-function renderStats(stats) {
-  const elTotal = document.getElementById('stat-total-devices');
-  const elBattery = document.getElementById('stat-avg-battery');
-  const elTemp = document.getElementById('stat-avg-temp');
-  const elRoot = document.getElementById('stat-root-count');
-
-  if (elTotal) elTotal.textContent = String(stats.totalDevices || 0);
-  if (elBattery) elBattery.textContent = `${stats.avgBatteryLevel || 0}%`;
-  if (elTemp) elTemp.textContent = `${stats.avgBatteryTemp || 0}°C`;
-  if (elRoot) elRoot.textContent = String(stats.rootedCount || 0);
 }
 
 // Fetch Reports List with no-store
 async function fetchReports() {
   try {
     const res = await fetch('/api/reports', { cache: 'no-store' });
-    if (!res.ok) throw new Error('HTTP ' + res.status);
+    if (!res.ok) return;
     const json = await res.json();
     if (json.success && Array.isArray(json.data)) {
       const isDifferent = JSON.stringify(json.data) !== JSON.stringify(cachedReports);
@@ -89,7 +75,7 @@ async function fetchReports() {
   } catch (_) {}
 }
 
-// Render Table using Secure DOM Methods (No innerHTML)
+// Render Table using Secure DOM Methods (Strict Flat Contract)
 function renderReportsTable(reports) {
   const tbody = document.getElementById('reports-table-body');
   if (!tbody) return;
@@ -127,64 +113,59 @@ function createReportRow(item) {
 
   // 1. ID
   const tdId = document.createElement('td');
-  tdId.textContent = `#${item.id || '--'}`;
+  tdId.textContent = `#${String(item.id || '--').substring(0, 10)}`;
   tr.appendChild(tdId);
 
-  // 2. Real Model & Brand
+  // 2. Real Device Model
   const tdDevice = document.createElement('td');
-  const brandTitle = document.createElement('div');
-  brandTitle.style.fontWeight = '700';
-  brandTitle.style.fontSize = '15px';
-  brandTitle.textContent = `${item.brand || 'هاتف'} ${item.model || ''}`;
+  const modelTitle = document.createElement('div');
+  modelTitle.style.fontWeight = '700';
+  modelTitle.style.fontSize = '15px';
+  modelTitle.textContent = item.deviceModel || 'هاتف ذكي';
 
-  const deviceSub = document.createElement('div');
-  deviceSub.style.fontSize = '11px';
-  deviceSub.style.color = 'var(--text-secondary)';
-  deviceSub.textContent = `معرف: ${item.device_id || '--'}`;
+  const idSub = document.createElement('div');
+  idSub.style.fontSize = '11px';
+  idSub.style.color = 'var(--text-secondary)';
+  idSub.textContent = `المعرف: ${item.id || '--'}`;
 
-  tdDevice.appendChild(brandTitle);
-  tdDevice.appendChild(deviceSub);
+  tdDevice.appendChild(modelTitle);
+  tdDevice.appendChild(idSub);
   tr.appendChild(tdDevice);
 
   // 3. Real OS & Version
   const tdOs = document.createElement('td');
   const osBadge = document.createElement('span');
-  const osText = item.os_version || 'Android';
+  const osText = item.androidVersion ? `${item.os} ${item.androidVersion}` : (item.os || 'Android');
   osBadge.className = osText.includes('iOS') ? 'badge badge-info' : 'badge badge-success';
   osBadge.textContent = osText;
   tdOs.appendChild(osBadge);
   tr.appendChild(tdOs);
 
-  // 4. Real IP + Country + City + ISP
+  // 4. Real IP & ISP
   const tdIp = document.createElement('td');
   const ipText = document.createElement('div');
   ipText.style.fontWeight = '700';
   ipText.style.fontFamily = 'monospace';
   ipText.style.fontSize = '14px';
   ipText.style.color = '#06B6D4';
-  ipText.textContent = item.ip_address || '127.0.0.1';
+  ipText.textContent = item.ip || '127.0.0.1';
   tdIp.appendChild(ipText);
 
-  // Geo & ISP details
-  const geoDetails = [];
-  if (item.city) geoDetails.push(item.city);
-  if (item.country) geoDetails.push(item.country);
-  
-  if (geoDetails.length > 0 || item.isp) {
-    const geoSub = document.createElement('div');
-    geoSub.style.fontSize = '12px';
-    geoSub.style.color = 'var(--text-secondary)';
-    geoSub.style.marginTop = '2px';
-    geoSub.textContent = `📍 ${geoDetails.join('، ')} ${item.isp ? '• ' + item.isp : ''}`;
-    tdIp.appendChild(geoSub);
+  if (item.isp) {
+    const ispSub = document.createElement('div');
+    ispSub.style.fontSize = '12px';
+    ispSub.style.color = 'var(--text-secondary)';
+    ispSub.style.marginTop = '2px';
+    ispSub.textContent = `📍 ${item.isp}`;
+    tdIp.appendChild(ispSub);
   }
   tr.appendChild(tdIp);
 
-  // 5. Battery Level & Status
+  // 5. Battery Level & Charging
   const tdBattery = document.createElement('td');
-  const level = Number(item.battery_level) || 0;
+  const rawLevel = parseInt(String(item.batteryLevel || '').replace('%', ''), 10);
 
-  if (level > 0) {
+  if (!isNaN(rawLevel) && rawLevel > 0) {
     const barContainer = document.createElement('div');
     barContainer.className = 'battery-bar-container';
 
@@ -193,10 +174,10 @@ function createReportRow(item) {
 
     const barFill = document.createElement('div');
     barFill.className = 'battery-bar-fill';
-    barFill.style.width = `${Math.min(100, Math.max(0, level))}%`;
+    barFill.style.width = `${Math.min(100, Math.max(0, rawLevel))}%`;
 
-    if (level > 50) barFill.style.backgroundColor = 'var(--success)';
-    else if (level > 20) barFill.style.backgroundColor = 'var(--warning)';
+    if (rawLevel > 50) barFill.style.backgroundColor = 'var(--success)';
+    else if (rawLevel > 20) barFill.style.backgroundColor = 'var(--warning)';
     else barFill.style.backgroundColor = 'var(--danger)';
 
     barTrack.appendChild(barFill);
@@ -204,7 +185,7 @@ function createReportRow(item) {
     const levelText = document.createElement('span');
     levelText.style.fontWeight = '700';
     levelText.style.minWidth = '38px';
-    levelText.textContent = `${level}%`;
+    levelText.textContent = `${rawLevel}%`;
 
     barContainer.appendChild(barTrack);
     barContainer.appendChild(levelText);
@@ -214,43 +195,43 @@ function createReportRow(item) {
     chgSub.style.fontSize = '11px';
     chgSub.style.color = 'var(--text-secondary)';
     chgSub.style.marginTop = '4px';
-    chgSub.textContent = item.charging_type || item.battery_status || '';
+    chgSub.textContent = item.batteryCharging || '';
     tdBattery.appendChild(chgSub);
   } else {
     const pendingSpan = document.createElement('span');
     pendingSpan.className = 'badge badge-neutral';
-    pendingSpan.textContent = item.battery_status || 'قيد الفحص...';
+    pendingSpan.textContent = item.batteryLevel || 'قيد الفحص...';
     tdBattery.appendChild(pendingSpan);
   }
   tr.appendChild(tdBattery);
 
-  // 6. GPU Renderer & Vendor
+  // 6. GPU Renderer
   const tdGpu = document.createElement('td');
   tdGpu.style.fontSize = '12px';
   tdGpu.style.color = 'var(--text-main)';
-  tdGpu.style.maxWidth = '220px';
+  tdGpu.style.maxWidth = '200px';
   tdGpu.style.wordBreak = 'break-word';
-  tdGpu.textContent = item.gpu || item.cpu_model || 'معالج رسومي مدمج';
+  tdGpu.textContent = item.gpu || 'معالج رسومي مدمج';
   tr.appendChild(tdGpu);
 
   // 7. Hardware & Screen
   const tdHw = document.createElement('td');
   const hwText = document.createElement('div');
-  hwText.textContent = `${item.cpu_cores || 8} أنوية • ${Math.round((item.total_ram_mb || 4096) / 1024)}GB RAM`;
+  hwText.textContent = `${item.cpuCores || '8 أنوية'} • ${item.ram || 'RAM'}`;
   const screenText = document.createElement('div');
   screenText.style.fontSize = '11px';
   screenText.style.color = 'var(--text-secondary)';
-  screenText.textContent = `الشاشة: ${item.screen_res || '1080x2400'}`;
+  screenText.textContent = `الشاشة: ${item.screen || '1080x2400'}`;
   tdHw.appendChild(hwText);
   tdHw.appendChild(screenText);
   tr.appendChild(tdHw);
 
-  // 8. Time of visit
+  // 8. Timestamp
   const tdDate = document.createElement('td');
   tdDate.style.fontSize = '12px';
   tdDate.style.color = 'var(--text-secondary)';
   try {
-    const d = new Date(item.created_at || item.timestamp);
+    const d = new Date(item.timestamp);
     tdDate.textContent = d.toLocaleTimeString('ar-EG');
   } catch {
     tdDate.textContent = '--';
@@ -285,8 +266,8 @@ function createReportRow(item) {
   return tr;
 }
 
-// Open Detailed Modal
-function openReportModal(report) {
+// Modal View
+function openReportModal(item) {
   const modalOverlay = document.getElementById('report-modal');
   const modalTitle = document.getElementById('modal-device-title');
   const modalId = document.getElementById('modal-device-id');
@@ -297,58 +278,61 @@ function openReportModal(report) {
   modalOverlay.style.display = 'flex';
   modalBody.replaceChildren();
 
-  const details = report.details || report;
-  const bat = details.battery || {};
-  const hw = details.hardware || {};
+  if (modalTitle) modalTitle.textContent = item.deviceModel || 'هاتف ذكي';
+  if (modalId) modalId.textContent = `معرف الجهاز: ${item.id || '--'} | الوقت: ${item.timestamp || '--'}`;
 
-  if (modalTitle) modalTitle.textContent = `${report.brand || 'هاتف'} ${report.model || ''}`;
-  if (modalId) modalId.textContent = `معرف الجهاز: ${report.device_id || '--'} | رقم التقرير: #${report.id || '--'}`;
-
-  // Section 1: Network & Real IP Details
+  // Section 1: Network & Real IP
   const secNet = createModalSection('🌐 شبكة الاتصال وعنوان الـ IP الحقيقي');
   const gridNet = document.createElement('div');
   gridNet.className = 'spec-list';
 
-  addSpecItem(gridNet, 'عنوان الـ IP العام (Public IP)', report.ip_address || '127.0.0.1');
-  addSpecItem(gridNet, 'الدولة (Country)', report.country || 'غير محدد');
-  addSpecItem(gridNet, 'المدينة (City)', report.city || 'غير محدد');
-  addSpecItem(gridNet, 'مزود خدمة الإنترنت (ISP/Org)', report.isp || report.network_type || 'غير محدد');
-  addSpecItem(gridNet, 'نوع الاتصال', report.network_type || 'WiFi/Cellular');
+  addSpecItem(gridNet, 'عنوان الـ IP العام (Public IP)', item.ip || '127.0.0.1');
+  addSpecItem(gridNet, 'مزود الخدمة والموقع (Location / ISP)', item.isp || 'غير محدد');
 
   secNet.appendChild(gridNet);
   modalBody.appendChild(secNet);
 
-  // Section 2: Hardware & Real Model
-  const secHw = createModalSection('⚙️ مواصفات الهاتف والموديل الدقيق');
+  // Section 2: Accurate Device Specs
+  const secHw = createModalSection('📱 موديل الهاتف الحقيقي والعتاد');
   const gridHw = document.createElement('div');
   gridHw.className = 'spec-list';
 
-  addSpecItem(gridHw, 'الشركة المصنعة (Brand)', report.brand);
-  addSpecItem(gridHw, 'الموديل الحقيقي (High Entropy Model)', report.model);
-  addSpecItem(gridHw, 'إصدار الأندرويد الفعلي (Real OS)', report.os_version);
-  addSpecItem(gridHw, 'كرت الشاشة (GPU Renderer)', report.gpu || report.cpu_model || 'معالج رسومي');
-  addSpecItem(gridHw, 'عدد الأنوية (CPU Cores)', `${report.cpu_cores || 8} أنوية`);
-  addSpecItem(gridHw, 'الذاكرة العشوائية (RAM)', `${report.total_ram_mb || 4096} MB`);
-  addSpecItem(gridHw, 'أبعاد الشاشة (Resolution)', report.screen_res || '1080x2400');
-  addSpecItem(gridHw, 'معدل التحديث (Refresh Rate)', `${report.refresh_rate || 60} Hz`);
+  addSpecItem(gridHw, 'الموديل الدقيق (Device Model)', item.deviceModel);
+  addSpecItem(gridHw, 'نظام التشغيل (OS)', item.os);
+  addSpecItem(gridHw, 'إصدار الأندرويد الفعلي (Android Version)', item.androidVersion || 'غير محدد');
+  addSpecItem(gridHw, 'كرت الشاشة (GPU Renderer)', item.gpu);
+  addSpecItem(gridHw, 'أنوية المعالج (CPU Cores)', item.cpuCores);
+  addSpecItem(gridHw, 'الذاكرة العشوائية (RAM)', item.ram);
+  addSpecItem(gridHw, 'أبعاد الشاشة (Screen Resolution)', item.screen);
 
   secHw.appendChild(gridHw);
   modalBody.appendChild(secHw);
 
-  // Section 3: Battery Diagnostics
-  const secBattery = createModalSection('🔋 فحص البطارية (Battery)');
-  const gridBattery = document.createElement('div');
-  gridBattery.className = 'spec-list';
+  // Section 3: Battery
+  const secBat = createModalSection('🔋 فحص البطارية');
+  const gridBat = document.createElement('div');
+  gridBat.className = 'spec-list';
 
-  addSpecItem(gridBattery, 'نسبة الشحن', report.battery_level ? `${report.battery_level}%` : 'جاري الفحص');
-  addSpecItem(gridBattery, 'حالة التوصيل بالشاحن', report.charging_type || report.battery_status || '--');
-  addSpecItem(gridBattery, 'صحة البطارية', report.battery_health || 'Good');
-  addSpecItem(gridBattery, 'درجة الحرارة', `${report.battery_temperature || 31} °C`);
-  addSpecItem(gridBattery, 'الجهد الكهربائي', `${report.battery_voltage || 3900} mV`);
-  addSpecItem(gridBattery, 'تقنية البطارية', report.battery_tech || 'Li-ion');
+  addSpecItem(gridBat, 'نسبة الشحن', item.batteryLevel);
+  addSpecItem(gridBat, 'حالة الشحن', item.batteryCharging);
 
-  secBattery.appendChild(gridBattery);
-  modalBody.appendChild(secBattery);
+  secBat.appendChild(gridBat);
+  modalBody.appendChild(secBat);
+
+  // Section 4: User Agent
+  const secUa = createModalSection('🔍 متصفح الجهاز (User Agent)');
+  const uaBox = document.createElement('div');
+  uaBox.style.background = '#0B0F19';
+  uaBox.style.padding = '12px';
+  uaBox.style.borderRadius = '10px';
+  uaBox.style.fontFamily = 'monospace';
+  uaBox.style.fontSize = '12px';
+  uaBox.style.color = '#9CA3AF';
+  uaBox.style.wordBreak = 'break-all';
+  uaBox.textContent = item.userAgent || '--';
+
+  secUa.appendChild(uaBox);
+  modalBody.appendChild(secUa);
 }
 
 function createModalSection(titleText) {
@@ -378,7 +362,6 @@ function addSpecItem(container, label, value) {
   container.appendChild(item);
 }
 
-// Delete Report
 async function handleDeleteReport(id) {
   if (!window.confirm(`هل أنت متأكد من حذف التقرير #${id}؟`)) return;
 
@@ -393,7 +376,6 @@ async function handleDeleteReport(id) {
   } catch (_) {}
 }
 
-// Filter Reports by Keyword
 function filterReports(keyword) {
   if (!keyword) {
     renderReportsTable(cachedReports);
@@ -401,28 +383,26 @@ function filterReports(keyword) {
   }
 
   const filtered = cachedReports.filter(r => {
-    const searchString = `${r.brand} ${r.model} ${r.ip_address} ${r.country} ${r.city} ${r.isp} ${r.os_version} ${r.gpu}`.toLowerCase();
+    const searchString = `${r.deviceModel} ${r.ip} ${r.isp} ${r.os} ${r.androidVersion} ${r.gpu}`.toLowerCase();
     return searchString.includes(keyword);
   });
 
   renderReportsTable(filtered);
 }
 
-// Export to JSON file
 function exportReportsAsJson() {
   const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(cachedReports, null, 2));
   const dlAnchorElem = document.createElement('a');
   dlAnchorElem.setAttribute("href", dataStr);
-  dlAnchorElem.setAttribute("download", `ktaab_diagnostics_reports_${Date.now()}.json`);
+  dlAnchorElem.setAttribute("download", `ktaab_flat_reports_${Date.now()}.json`);
   dlAnchorElem.click();
 }
 
-// Real-time Server-Sent Events (SSE) Listener
 function initSSE() {
   const statusEl = document.getElementById('live-status-text');
 
   if (!window.EventSource) {
-    if (statusEl) statusEl.textContent = 'محدث دوري (2s)';
+    if (statusEl) statusEl.textContent = 'تحديث دوري نشط (2s)';
     return;
   }
 
@@ -436,7 +416,7 @@ function initSSE() {
     eventSource.addEventListener('new_report', (e) => {
       try {
         const item = JSON.parse(e.data);
-        const idx = cachedReports.findIndex(r => r.device_id === item.device_id);
+        const idx = cachedReports.findIndex(r => r.id === item.id);
         if (idx !== -1) {
           cachedReports[idx] = item;
         } else {
@@ -444,9 +424,7 @@ function initSSE() {
         }
         renderReportsTable(cachedReports);
         fetchStats();
-      } catch (err) {
-        console.warn('SSE parse warning:', err);
-      }
+      } catch (_) {}
     });
 
     eventSource.addEventListener('report_deleted', (e) => {
