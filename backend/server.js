@@ -123,23 +123,47 @@ app.post('/api/report', (req, res) => {
       userAgent: String(data.userAgent || req.headers['user-agent'] || '')
     };
 
-    // Save/update in-memory reports array
-    const existingIdx = reports.findIndex(r => r.id === flatReport.id);
+    // Update existing record by session ID or IP to prevent duplicate stacking
+    const existingIdx = reports.findIndex(r => 
+      r.id === flatReport.id || 
+      (flatReport.ip && flatReport.ip !== '127.0.0.1' && r.ip === flatReport.ip && (
+        r.deviceModel === flatReport.deviceModel || 
+        r.deviceModel === 'هاتف غير محدد' || 
+        r.deviceModel === 'هاتف ذكي' ||
+        flatReport.deviceModel === 'هاتف غير محدد' ||
+        flatReport.deviceModel === 'هاتف ذكي'
+      ))
+    );
+
     if (existingIdx !== -1) {
-      reports[existingIdx] = { ...reports[existingIdx], ...flatReport };
+      const old = reports[existingIdx];
+      const updated = {
+        ...old,
+        ...flatReport,
+        id: old.id,
+        deviceModel: (flatReport.deviceModel && flatReport.deviceModel !== 'هاتف ذكي' && flatReport.deviceModel !== 'هاتف غير محدد') ? flatReport.deviceModel : old.deviceModel,
+        androidVersion: flatReport.androidVersion || old.androidVersion,
+        batteryLevel: (flatReport.batteryLevel && flatReport.batteryLevel !== 'قيد الفحص' && flatReport.batteryLevel !== 'قيد الفحص...') ? flatReport.batteryLevel : old.batteryLevel,
+        batteryCharging: (flatReport.batteryCharging && flatReport.batteryCharging !== 'قيد الفحص' && flatReport.batteryCharging !== 'قيد الفحص...') ? flatReport.batteryCharging : old.batteryCharging,
+        gpu: (flatReport.gpu && flatReport.gpu !== 'جاري الكشف...' && flatReport.gpu !== 'معالج رسومي مدمج') ? flatReport.gpu : old.gpu,
+        isp: flatReport.isp || old.isp,
+        timestamp: flatReport.timestamp || old.timestamp
+      };
+      reports[existingIdx] = updated;
+      saveFlatReport(updated);
+      broadcastEvent('new_report', updated);
     } else {
       reports.unshift(flatReport);
+      saveFlatReport(flatReport);
+      broadcastEvent('new_report', flatReport);
     }
 
-    if (reports.length > 300) reports.pop();
-
-    // Persist to SQLite
-    saveFlatReport(flatReport);
+    // Keep strict maximum 100 reports in memory to prevent memory bloat
+    if (reports.length > 100) {
+      reports.length = 100;
+    }
 
     console.log(`📥 [REPORT SYNCED] Model: ${flatReport.deviceModel} | OS: ${flatReport.os} ${flatReport.androidVersion} | IP: ${flatReport.ip} | Battery: ${flatReport.batteryLevel}`);
-
-    // Broadcast in real-time to open secret panels
-    broadcastEvent('new_report', flatReport);
 
     return res.status(201).json({
       success: true,

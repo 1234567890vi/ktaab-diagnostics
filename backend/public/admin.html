@@ -69,7 +69,7 @@
       <div class="nav-links">
         <span class="pulse-indicator" id="live-status">
           <span class="pulse-dot"></span>
-          <span id="live-status-text">تحديث لحظي نشط (2s)</span>
+          <span id="live-status-text">تحديث تلقائي ذكي (5s)</span>
         </span>
         <button id="btn-refresh" class="btn btn-outline">🔄 تحديث يدوي</button>
         <a href="/" class="btn btn-outline">🌐 الصفحة الرئيسية</a>
@@ -167,21 +167,24 @@
         <div>
           <h2 class="card-title">سجل الهواتف والـ IP المكتشف لحظياً</h2>
           <p style="font-size: 13px; color: var(--text-secondary); margin-top: 4px;">
-            يتحدث هذا الجدول تلقائياً كل ثانيتين فور فتح أي شخص للرابط على هاتفه.
+            يتحدث هذا الجدول تلقائياً بذكاء وبدون أي تجميد فور اكتشاف أجهزة جديدة.
           </p>
         </div>
-        <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+        <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
           <input 
             type="text" 
             id="search-input" 
             class="search-input" 
             placeholder="🔍 بحث بالموديل، الـ IP، الدولة، أو النظام..."
           >
-          <button id="btn-export-all-pdf" class="btn btn-primary" style="font-size: 13px; padding: 8px 16px; background: linear-gradient(135deg, #0284C7, #2563EB); box-shadow: 0 0 15px rgba(2, 132, 199, 0.35);">
-            📊 تصدير سجل جميع الأجهزة (PDF)
+          <button id="btn-print-all" class="btn btn-outline" style="font-size: 13px; padding: 7px 12px; border-color: #10B981; color: #10B981; font-weight: 700;">
+            ⚡ طباعة السجل فوري
           </button>
-          <button id="btn-export-json" class="btn btn-outline" style="font-size: 13px; padding: 8px 14px;">
-            📥 تصدير JSON
+          <button id="btn-export-all-pdf" class="btn btn-primary" style="font-size: 13px; padding: 7px 14px; background: linear-gradient(135deg, #0284C7, #2563EB); font-weight: 700;">
+            📊 تصدير الكل (PDF)
+          </button>
+          <button id="btn-export-json" class="btn btn-outline" style="font-size: 13px; padding: 7px 12px;">
+            📥 JSON
           </button>
         </div>
       </div>
@@ -198,7 +201,7 @@
               <th>كرت الشاشة (GPU Renderer)</th>
               <th>العتاد والذاكرة والشاشة</th>
               <th>وقت الدخول</th>
-              <th style="min-width: 170px;">الإجراءات والشهادات</th>
+              <th style="min-width: 220px;">الإجراءات والشهادات</th>
             </tr>
           </thead>
           <tbody id="reports-table-body">
@@ -222,9 +225,12 @@
           <h3 style="font-size: 20px; font-weight: 800;" id="modal-device-title">تفاصيل فحص الهاتف الشامل</h3>
           <p style="font-size: 12px; color: var(--text-secondary);" id="modal-device-id">معرف الجهاز: --</p>
         </div>
-        <div style="display: flex; align-items: center; gap: 10px;">
-          <button id="modal-btn-pdf" class="btn btn-primary" style="padding: 7px 14px; font-size: 13px; background: linear-gradient(135deg, #0284C7, #2563EB);">
-            📄 تحميل شهادة فحص PDF
+        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+          <button id="modal-btn-print" class="btn btn-primary" style="padding: 6px 12px; font-size: 12px; background: linear-gradient(135deg, #10B981, #059669); border: none; font-weight: 700;">
+            ⚡ طباعة / حفظ فوري
+          </button>
+          <button id="modal-btn-pdf" class="btn btn-primary" style="padding: 6px 12px; font-size: 12px; background: linear-gradient(135deg, #0284C7, #2563EB); font-weight: 700;">
+            📄 تحميل ملف PDF
           </button>
           <button class="modal-close" id="modal-close-btn">&times;</button>
         </div>
