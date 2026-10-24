@@ -26,3 +26,7 @@ ktaab_app/*.iml
 # OS files
 .DS_Store
 Thumbs.db
+
+# Binaries
+cloudflared.exe
+*.exe
