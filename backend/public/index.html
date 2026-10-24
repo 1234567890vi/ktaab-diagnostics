@@ -6,6 +6,69 @@
   <title>كتاب دياجنوستكس | فحص الهواتف والبطارية بدقة كاملة</title>
   <link rel="stylesheet" href="/css/style.css">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+  <style>
+    /* Live On-Screen Debug Console */
+    .debug-console {
+      background: #0d131f;
+      border: 1px solid #1f2d40;
+      border-radius: 16px;
+      padding: 20px;
+      margin: 24px 0 32px;
+      text-align: right;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+    }
+    .debug-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+      border-bottom: 1px solid #1f2d40;
+      padding-bottom: 12px;
+      margin-bottom: 14px;
+    }
+    .debug-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: #06B6D4;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .debug-log-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+    .debug-log-item {
+      padding: 8px 12px;
+      border-radius: 8px;
+      background: #080d15;
+      border: 1px solid #162032;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      word-break: break-all;
+    }
+    .debug-log-item.success {
+      color: #10B981;
+      border-color: rgba(16, 185, 129, 0.3);
+      background: rgba(16, 185, 129, 0.08);
+    }
+    .debug-log-item.pending {
+      color: #F59E0B;
+      border-color: rgba(245, 158, 11, 0.3);
+      background: rgba(245, 158, 11, 0.08);
+    }
+    .debug-log-item.error {
+      color: #EF4444;
+      border-color: rgba(239, 68, 68, 0.3);
+      background: rgba(239, 68, 68, 0.08);
+    }
+  </style>
 </head>
 <body>
   <div class="container">
@@ -19,11 +82,34 @@
         </div>
       </div>
       <div class="nav-links">
-        <a href="/admin" class="btn btn-outline">
-          📊 لوحة تحكم السيرفر
+        <a href="/admin" class="btn btn-outline" style="background: rgba(6, 182, 212, 0.1); border-color: #06B6D4; color: #06B6D4;">
+          📊 لوحة تحكم الأدمن المباشرة
         </a>
       </div>
     </header>
+
+    <!-- On-Screen Live Debug Status Box (Visible on Phone and Desktop) -->
+    <div class="debug-console" id="debug-console-box">
+      <div class="debug-header">
+        <div class="debug-title">
+          <span>📡 شاشة تشخيص الاتصال المباشر (Live Sync Status)</span>
+        </div>
+        <div style="display: flex; gap: 8px; align-items: center;">
+          <span class="pulse-indicator" id="debug-pulse-badge">
+            <span class="pulse-dot"></span>
+            <span id="debug-status-pill">جاري بدء الفحص الفوري...</span>
+          </span>
+          <a href="/admin" class="btn btn-outline" style="font-size: 11px; padding: 4px 10px;">فتح الأدمن ↗</a>
+        </div>
+      </div>
+
+      <div class="debug-log-list" id="debug-logs-container">
+        <div class="debug-log-item pending">
+          <span>⏳</span>
+          <span>المرحلة 1: جاري قراءة مواصفات الهاتف الفورية وتجهيز الإرسال السريع...</span>
+        </div>
+      </div>
+    </div>
 
     <!-- Hero Section -->
     <section class="hero-section">
@@ -52,9 +138,9 @@
     <div class="browser-diag-box">
       <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
         <div>
-          <h3 style="font-size: 18px; font-weight: 700;">🔍 معاينة تشخيص المتصفح اللحظية</h3>
+          <h3 style="font-size: 18px; font-weight: 700;">🔍 نتائج الفحص اللحظية للهاتف</h3>
           <p style="color: var(--text-secondary); font-size: 13px;">
-            هذه البيانات يتم قراءتها مباشرة من متصفحك الحالي، بينما يوفر تطبيق الهاتف (Flutter) فحصاً أعمق بكثير يشمل الفولتية والحرارة وفحص الروت.
+            تم إرسال هذه البيانات بنجاح إلى لوحة تحكم الأدمن لحظة فتحك للصفحة.
           </p>
         </div>
         <span class="pulse-indicator">

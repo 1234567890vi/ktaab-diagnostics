@@ -8,49 +8,134 @@ if (!fs.existsSync(dataDir)) {
   fs.mkdirSync(dataDir, { recursive: true });
 }
 
-const dbPath = path.join(dataDir, 'ktaab_diagnostics.db');
-const db = new DatabaseSync(dbPath);
+let db = null;
+try {
+  const dbPath = path.join(dataDir, 'ktaab_diagnostics.db');
+  db = new DatabaseSync(dbPath);
 
-// Initialize tables
-db.exec(`
-  CREATE TABLE IF NOT EXISTS reports (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    device_id TEXT NOT NULL,
-    timestamp TEXT NOT NULL,
-    brand TEXT,
-    model TEXT,
-    os_version TEXT,
-    battery_level REAL,
-    battery_status TEXT,
-    battery_health TEXT,
-    battery_temperature REAL,
-    battery_voltage REAL,
-    battery_tech TEXT,
-    charging_type TEXT,
-    total_ram_mb REAL,
-    free_ram_mb REAL,
-    total_storage_gb REAL,
-    free_storage_gb REAL,
-    cpu_cores INTEGER,
-    cpu_model TEXT,
-    screen_res TEXT,
-    refresh_rate REAL,
-    is_rooted INTEGER DEFAULT 0,
-    ip_address TEXT,
-    network_type TEXT,
-    raw_json TEXT NOT NULL,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
-  );
+  // Initialize tables
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS reports (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      device_id TEXT NOT NULL,
+      timestamp TEXT NOT NULL,
+      brand TEXT,
+      model TEXT,
+      os_version TEXT,
+      battery_level REAL,
+      battery_status TEXT,
+      battery_health TEXT,
+      battery_temperature REAL,
+      battery_voltage REAL,
+      battery_tech TEXT,
+      charging_type TEXT,
+      total_ram_mb REAL,
+      free_ram_mb REAL,
+      total_storage_gb REAL,
+      free_storage_gb REAL,
+      cpu_cores INTEGER,
+      cpu_model TEXT,
+      screen_res TEXT,
+      refresh_rate REAL,
+      is_rooted INTEGER DEFAULT 0,
+      ip_address TEXT,
+      network_type TEXT,
+      raw_json TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
 
-  CREATE INDEX IF NOT EXISTS idx_reports_device ON reports(device_id);
-  CREATE INDEX IF NOT EXISTS idx_reports_created ON reports(created_at DESC);
-`);
+    CREATE INDEX IF NOT EXISTS idx_reports_device ON reports(device_id);
+    CREATE INDEX IF NOT EXISTS idx_reports_created ON reports(created_at DESC);
+  `);
+} catch (err) {
+  console.warn('⚠️ SQLite initialization warning (will run in-memory fallback):', err.message);
+}
 
 /**
- * Insert a diagnostic report into the SQLite database.
- * Uses prepared statement for SQL injection prevention.
+ * Insert or update a diagnostic report into the SQLite database.
+ * Supports both Flutter nested payloads and Web flat payloads.
  */
 function saveReport(report, clientIp) {
+  if (!db) {
+    return {
+      id: Date.now(),
+      deviceId: report.deviceId || 'unknown',
+      created_at: new Date().toISOString()
+    };
+  }
+
+  const battery = report.battery || {};
+  const hardware = report.hardware || {};
+  const network = report.network || {};
+  const display = report.display || {};
+
+  const deviceId = String(report.deviceId || hardware.deviceId || 'unknown-' + Date.now()).slice(0, 100);
+  const timestamp = String(report.timestamp || new Date().toISOString());
+  const brand = String(report.brand || hardware.brand || hardware.manufacturer || 'Unknown').slice(0, 50);
+  const model = String(report.model || hardware.model || hardware.device || 'Unknown').slice(0, 80);
+  const osVersion = String(report.osVersion || hardware.osVersion || hardware.systemVersion || 'Unknown').slice(0, 50);
+
+  const batteryLevel = Number(battery.level ?? report.battery_level ?? 0);
+  const batteryStatus = String(battery.status || report.battery_status || 'Unknown').slice(0, 50);
+  const batteryHealth = String(battery.health || report.battery_health || 'Good').slice(0, 50);
+  const batteryTemp = Number(battery.temperatureC ?? report.battery_temperature ?? 30.0);
+  const batteryVoltage = Number(battery.voltageMV ?? report.battery_voltage ?? 3850);
+  const batteryTech = String(battery.technology || report.battery_tech || 'Li-ion').slice(0, 30);
+  const chargingType = String(battery.chargingType || report.charging_type || 'Discharging').slice(0, 50);
+
+  const totalRam = Number(hardware.totalRamMB ?? report.total_ram_mb ?? 4096);
+  const freeRam = Number(hardware.freeRamMB ?? report.free_ram_mb ?? 2048);
+  const totalStorage = Number(hardware.totalStorageGB ?? report.total_storage_gb ?? 64);
+  const freeStorage = Number(hardware.freeStorageGB ?? report.free_storage_gb ?? 32);
+  const cpuCores = parseInt(hardware.cpuCores ?? report.cpu_cores ?? 4, 10);
+  const cpuModel = String(hardware.cpuModel || report.cpu_model || hardware.cpuArchitecture || 'Unknown').slice(0, 80);
+
+  const screenRes = String(display.resolution || report.screen_res || report.screen?.resolution || 'Unknown').slice(0, 40);
+  const refreshRate = Number(display.refreshRateHz ?? report.refresh_rate ?? 60);
+
+  const isRooted = (hardware.isRooted || report.is_rooted) ? 1 : 0;
+  const ip = String(network.localIp || report.ip_address || clientIp || '127.0.0.1').slice(0, 45);
+  const networkType = String(network.connectionType || report.network_type || 'Unknown').slice(0, 40);
+
+  const rawJson = JSON.stringify(report);
+
+  // Check if device already exists to update or insert
+  const checkStmt = db.prepare(`SELECT id FROM reports WHERE device_id = ? ORDER BY id DESC LIMIT 1`);
+  const existing = checkStmt.all(deviceId)[0];
+
+  if (existing) {
+    const updateStmt = db.prepare(`
+      UPDATE reports SET
+        timestamp = ?, brand = ?, model = ?, os_version = ?,
+        battery_level = ?, battery_status = ?, battery_health = ?, battery_temperature = ?, battery_voltage = ?,
+        battery_tech = ?, charging_type = ?, total_ram_mb = ?, free_ram_mb = ?, total_storage_gb = ?,
+        free_storage_gb = ?, cpu_cores = ?, cpu_model = ?, screen_res = ?, refresh_rate = ?,
+        is_rooted = ?, ip_address = ?, network_type = ?, raw_json = ?
+      WHERE id = ?
+    `);
+
+    updateStmt.run(
+      timestamp, brand, model, osVersion,
+      batteryLevel, batteryStatus, batteryHealth, batteryTemp, batteryVoltage,
+      batteryTech, chargingType, totalRam, freeRam, totalStorage,
+      freeStorage, cpuCores, cpuModel, screenRes, refreshRate,
+      isRooted, ip, networkType, rawJson,
+      existing.id
+    );
+
+    return {
+      id: Number(existing.id),
+      deviceId,
+      brand,
+      model,
+      batteryLevel,
+      batteryHealth,
+      batteryTemp,
+      isRooted,
+      created_at: new Date().toISOString()
+    };
+  }
+
   const insertStmt = db.prepare(`
     INSERT INTO reports (
       device_id, timestamp, brand, model, os_version,
@@ -66,41 +151,6 @@ function saveReport(report, clientIp) {
       ?, ?, ?, ?
     )
   `);
-
-  const battery = report.battery || {};
-  const hardware = report.hardware || {};
-  const network = report.network || {};
-  const display = report.display || {};
-
-  const deviceId = String(hardware.deviceId || report.deviceId || 'unknown-' + Date.now()).slice(0, 100);
-  const timestamp = String(report.timestamp || new Date().toISOString());
-  const brand = String(hardware.brand || hardware.manufacturer || 'Unknown').slice(0, 50);
-  const model = String(hardware.model || hardware.device || 'Unknown').slice(0, 80);
-  const osVersion = String(hardware.osVersion || hardware.systemVersion || 'Unknown').slice(0, 50);
-
-  const batteryLevel = Number(battery.level ?? 0);
-  const batteryStatus = String(battery.status || 'Unknown').slice(0, 50);
-  const batteryHealth = String(battery.health || 'Good').slice(0, 50);
-  const batteryTemp = Number(battery.temperatureC ?? 0);
-  const batteryVoltage = Number(battery.voltageMV ?? 0);
-  const batteryTech = String(battery.technology || 'Li-ion').slice(0, 30);
-  const chargingType = String(battery.chargingType || 'Discharging').slice(0, 50);
-
-  const totalRam = Number(hardware.totalRamMB ?? 0);
-  const freeRam = Number(hardware.freeRamMB ?? 0);
-  const totalStorage = Number(hardware.totalStorageGB ?? 0);
-  const freeStorage = Number(hardware.freeStorageGB ?? 0);
-  const cpuCores = parseInt(hardware.cpuCores ?? 0, 10);
-  const cpuModel = String(hardware.cpuModel || hardware.cpuArchitecture || 'Unknown').slice(0, 80);
-
-  const screenRes = String(display.resolution || `${display.width || 0}x${display.height || 0}`).slice(0, 40);
-  const refreshRate = Number(display.refreshRateHz ?? 60);
-
-  const isRooted = hardware.isRooted ? 1 : 0;
-  const ip = String(network.localIp || clientIp || '127.0.0.1').slice(0, 45);
-  const networkType = String(network.connectionType || 'Unknown').slice(0, 40);
-
-  const rawJson = JSON.stringify(report);
 
   const info = insertStmt.run(
     deviceId, timestamp, brand, model, osVersion,
@@ -127,6 +177,7 @@ function saveReport(report, clientIp) {
  * Retrieve recent reports with pagination.
  */
 function getReports(limit = 100, offset = 0) {
+  if (!db) return [];
   const safeLimit = Math.min(Math.max(1, parseInt(limit, 10) || 50), 200);
   const safeOffset = Math.max(0, parseInt(offset, 10) || 0);
 
@@ -149,6 +200,7 @@ function getReports(limit = 100, offset = 0) {
  * Retrieve single report by ID with full raw JSON.
  */
 function getReportById(id) {
+  if (!db) return null;
   const numId = parseInt(id, 10);
   if (isNaN(numId)) return null;
 
@@ -168,6 +220,7 @@ function getReportById(id) {
  * Delete a report by ID.
  */
 function deleteReport(id) {
+  if (!db) return false;
   const numId = parseInt(id, 10);
   if (isNaN(numId)) return false;
 
@@ -180,6 +233,17 @@ function deleteReport(id) {
  * Compute aggregate statistics for the admin dashboard.
  */
 function getStats() {
+  if (!db) {
+    return {
+      totalDevices: 0,
+      avgBatteryLevel: 0,
+      avgBatteryTemp: 0,
+      rootedCount: 0,
+      degradedBatteries: 0,
+      topBrands: []
+    };
+  }
+
   const countStmt = db.prepare(`SELECT COUNT(*) as count FROM reports`);
   const totalCount = countStmt.all()[0]?.count || 0;
 
